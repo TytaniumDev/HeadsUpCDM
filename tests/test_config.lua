@@ -54,6 +54,49 @@ describe("Config", function()
         assert.equal(0, pos.x)
         assert.equal(200, pos.y)
     end)
+
+    it("should default column order", function()
+        local layout = HUCDM.defaults.profile.layout
+        assert.is_not_nil(layout)
+        assert.same({"buffBars", "resource", "actions"}, layout.columnOrder)
+    end)
+
+    it("should have per-column defaults", function()
+        local cols = HUCDM.defaults.profile.layout.columns
+        assert.is_not_nil(cols.actions)
+        assert.is_not_nil(cols.resource)
+        assert.is_not_nil(cols.buffBars)
+        assert.equal(1.0, cols.actions.scale)
+        assert.equal(1.0, cols.actions.alpha)
+        assert.equal(6, cols.actions.spacing)
+        assert.equal(0, cols.actions.padding)
+    end)
+
+    it("should default resource bar thresholds", function()
+        local res = HUCDM.defaults.profile.resourceBar
+        assert.is_not_nil(res)
+        assert.is_true(res.showText)
+    end)
+
+    it("should default visual enhancements to off", function()
+        local vis = HUCDM.defaults.profile.visuals
+        assert.is_not_nil(vis)
+        assert.is_false(vis.desaturateOnCooldown)
+        assert.is_false(vis.coloredBorders)
+        assert.is_false(vis.buffCountdownText)
+    end)
+
+    it("should default anchor to none", function()
+        local anchor = HUCDM.defaults.profile.anchor
+        assert.is_not_nil(anchor)
+        assert.equal("NONE", anchor.target)
+        assert.equal(0, anchor.offsetX)
+        assert.equal(0, anchor.offsetY)
+    end)
+
+    it("should have empty spell overrides by default", function()
+        assert.same({}, HUCDM.defaults.profile.spellOverrides)
+    end)
 end)
 
 describe("Core", function()
