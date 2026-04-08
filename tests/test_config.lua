@@ -48,6 +48,7 @@ HUCDM.ArrangeColumns       = noop
 HUCDM.ApplyAnchor          = noop
 HUCDM.CreateLayout         = noop
 HUCDM.CreateActionColumn   = noop
+HUCDM.SetupRotationGlow    = noop
 HUCDM.CreateResourceBar    = noop
 HUCDM.CreateBuffIcons      = noop
 HUCDM.CreateBuffBars       = noop

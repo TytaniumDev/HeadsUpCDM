@@ -242,3 +242,70 @@ end
 function HUCDM:RescanActionButtons()
     self:ReanchorCDMFrames()
 end
+
+----------------------------------------------------------------------
+-- Rotation assist glow: listen for SPELL_ACTIVATION_OVERLAY events
+-- and show/hide a glow border on matching CDM frames
+----------------------------------------------------------------------
+local GLOW_SIZE = 3
+local glowFrames = setmetatable({}, { __mode = "k" })
+
+local function GetOrCreateGlow(parent)
+    if glowFrames[parent] then return glowFrames[parent] end
+
+    local glow = CreateFrame("Frame", nil, parent)
+    glow:SetFrameLevel(parent:GetFrameLevel() + 5)
+    glow:SetPoint("TOPLEFT", parent, "TOPLEFT", -GLOW_SIZE, GLOW_SIZE)
+    glow:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", GLOW_SIZE, -GLOW_SIZE)
+
+    local dirs = {
+        { "TOPLEFT", "TOPRIGHT", 0, 0, 0, -GLOW_SIZE },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", 0, GLOW_SIZE, 0, 0 },
+        { "TOPLEFT", "BOTTOMLEFT", 0, 0, GLOW_SIZE, 0 },
+        { "TOPRIGHT", "BOTTOMRIGHT", -GLOW_SIZE, 0, 0, 0 },
+    }
+    for i = 1, #dirs do
+        local d = dirs[i]
+        local tex = glow:CreateTexture(nil, "OVERLAY")
+        tex:SetPoint(d[1], glow, d[1], d[3], d[4])
+        tex:SetPoint(d[2], glow, d[2], d[5], d[6])
+        tex:SetColorTexture(1, 0.84, 0, 0.9)
+    end
+
+    glow:Hide()
+    glowFrames[parent] = glow
+    return glow
+end
+
+function HUCDM:SetupRotationGlow()
+    if self.glowEventsInstalled then return end
+    self.glowEventsInstalled = true
+
+    local glowEventFrame = CreateFrame("Frame", "HUCDM_GlowEvents", UIParent)
+    glowEventFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+    glowEventFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE")
+
+    glowEventFrame:SetScript("OnEvent", function(_, event, spellID)
+        if not self.cdmSpellSlots then return end
+
+        local isShow = (event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+
+        -- Find CDM frame for this spellID
+        local viewer = _G["EssentialCooldownViewer"]
+        if not viewer or not viewer.itemFramePool then return end
+
+        for frame in viewer.itemFramePool:EnumerateActive() do
+            local fd = frameData[frame]
+            if fd and fd.spellID == spellID then
+                local glow = GetOrCreateGlow(frame)
+                if isShow then
+                    glow:Show()
+                else
+                    glow:Hide()
+                end
+            end
+        end
+    end)
+
+    self.glowEventFrame = glowEventFrame
+end

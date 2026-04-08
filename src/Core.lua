@@ -65,6 +65,7 @@ function HUCDM:BuildDisplay()
 
     -- Build columns
     self:CreateActionColumn(preset)
+    self:SetupRotationGlow()
     self:CreateResourceBar(totalHeight)
     self:CreateBuffIcons(preset)
     self:CreateBuffBars(preset, totalHeight)
