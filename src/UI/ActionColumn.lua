@@ -247,7 +247,8 @@ end
 -- Rotation assist glow: use WoW 12.0 C_AssistedCombat API
 -- Fires when the rotation helper suggestion changes
 ----------------------------------------------------------------------
-local GLOW_SIZE = 3
+local GLOW_BORDER = 4
+local GLOW_BLOOM = 10
 local glowFrames = setmetatable({}, { __mode = "k" })
 local glowedFrames = {}
 
@@ -256,22 +257,45 @@ local function GetOrCreateGlow(parent)
 
     local glow = CreateFrame("Frame", nil, parent)
     glow:SetFrameLevel(parent:GetFrameLevel() + 5)
-    glow:SetPoint("TOPLEFT", parent, "TOPLEFT", -GLOW_SIZE, GLOW_SIZE)
-    glow:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", GLOW_SIZE, -GLOW_SIZE)
+    glow:SetPoint("TOPLEFT", parent, "TOPLEFT", -GLOW_BLOOM, GLOW_BLOOM)
+    glow:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", GLOW_BLOOM, -GLOW_BLOOM)
+
+    -- Outer bloom/glow (soft, wide)
+    local bloom = glow:CreateTexture(nil, "BACKGROUND")
+    bloom:SetAllPoints()
+    bloom:SetColorTexture(1, 0.84, 0, 0.35)
+    bloom:SetBlendMode("ADD")
+
+    -- Inner solid border (bright, sharp)
+    local inner = CreateFrame("Frame", nil, glow)
+    inner:SetPoint("TOPLEFT", glow, "TOPLEFT",
+        GLOW_BLOOM - GLOW_BORDER, -(GLOW_BLOOM - GLOW_BORDER))
+    inner:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT",
+        -(GLOW_BLOOM - GLOW_BORDER), GLOW_BLOOM - GLOW_BORDER)
 
     local dirs = {
-        { "TOPLEFT", "TOPRIGHT", 0, 0, 0, -GLOW_SIZE },
-        { "BOTTOMLEFT", "BOTTOMRIGHT", 0, GLOW_SIZE, 0, 0 },
-        { "TOPLEFT", "BOTTOMLEFT", 0, 0, GLOW_SIZE, 0 },
-        { "TOPRIGHT", "BOTTOMRIGHT", -GLOW_SIZE, 0, 0, 0 },
+        { "TOPLEFT", "TOPRIGHT", 0, 0, 0, -GLOW_BORDER },
+        { "BOTTOMLEFT", "BOTTOMRIGHT", 0, GLOW_BORDER, 0, 0 },
+        { "TOPLEFT", "BOTTOMLEFT", 0, 0, GLOW_BORDER, 0 },
+        { "TOPRIGHT", "BOTTOMRIGHT", -GLOW_BORDER, 0, 0, 0 },
     }
     for i = 1, #dirs do
         local d = dirs[i]
-        local tex = glow:CreateTexture(nil, "OVERLAY")
-        tex:SetPoint(d[1], glow, d[1], d[3], d[4])
-        tex:SetPoint(d[2], glow, d[2], d[5], d[6])
-        tex:SetColorTexture(1, 0.84, 0, 0.9)
+        local tex = inner:CreateTexture(nil, "OVERLAY")
+        tex:SetPoint(d[1], inner, d[1], d[3], d[4])
+        tex:SetPoint(d[2], inner, d[2], d[5], d[6])
+        tex:SetColorTexture(1, 0.84, 0, 1)
     end
+
+    -- Pulse animation on the bloom
+    local ag = bloom:CreateAnimationGroup()
+    ag:SetLooping("BOUNCE")
+    local pulse = ag:CreateAnimation("Alpha")
+    pulse:SetFromAlpha(0.35)
+    pulse:SetToAlpha(0.65)
+    pulse:SetDuration(0.5)
+    pulse:SetSmoothing("IN_OUT")
+    glow.pulseAnim = ag
 
     glow:Hide()
     glowFrames[parent] = glow
@@ -289,7 +313,10 @@ local function UpdateRotationHighlights()
     -- Clear all current glows
     for frame in pairs(glowedFrames) do
         local glow = glowFrames[frame]
-        if glow then glow:Hide() end
+        if glow then
+            if glow.pulseAnim then glow.pulseAnim:Stop() end
+            glow:Hide()
+        end
     end
     wipe(glowedFrames)
 
@@ -304,6 +331,7 @@ local function UpdateRotationHighlights()
         if fd and fd.spellID and fd.spellID == suggestedSpell then
             local glow = GetOrCreateGlow(frame)
             glow:Show()
+            if glow.pulseAnim then glow.pulseAnim:Play() end
             glowedFrames[frame] = true
         end
     end
