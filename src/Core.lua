@@ -19,16 +19,9 @@ function HUCDM:OnEnable()
     self:RegisterEvent("ACTIONBAR_SLOT_CHANGED", "OnActionBarChanged")
     self:RegisterEvent("ACTIONBAR_PAGE_CHANGED", "OnActionBarChanged")
 
-    -- Delay initial build to let Blizzard finish loading action bars
-    C_Timer.After(1, function()
+    -- Build on next frame (let Blizzard finish its current layout pass)
+    C_Timer.After(0, function()
         self:BuildDisplay()
-    end)
-    -- Fallback rescan
-    C_Timer.After(3, function()
-        if self.currentPreset and self.reparentedButtons
-            and #self.reparentedButtons == 0 then
-            self:RescanActionButtons()
-        end
     end)
 
     self:Print("HeadsUpCDM loaded. Type /hucdm for options.")

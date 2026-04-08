@@ -58,10 +58,8 @@ function HUCDM:CreateActionColumn(preset)
     -- Sync the CDM viewer to our column and install hooks
     self:SetupCDMHooks()
 
-    -- Deferred initial positioning (CDM frames may not exist yet)
-    C_Timer.After(0.5, function() self:ReanchorCDMFrames() end)
-    C_Timer.After(2, function() self:ReanchorCDMFrames() end)
-    C_Timer.After(5, function() self:ReanchorCDMFrames() end)
+    -- Deferred initial positioning (next frame, let CDM finish its layout)
+    C_Timer.After(0, function() self:ReanchorCDMFrames() end)
 
     self:RegisterColumn("actions", column)
     return column
@@ -376,4 +374,15 @@ function HUCDM:SetupRotationGlow()
         hooksecurefunc(AssistedCombatManager, "UpdateAllAssistedHighlightFramesForSpell",
             UpdateRotationHighlights)
     end
+
+    -- Also listen for SPELL_ACTIVATION_OVERLAY events (still fires for some procs)
+    local glowEventFrame = CreateFrame("Frame", "HUCDM_GlowEvents", UIParent)
+    glowEventFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+    glowEventFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE")
+    glowEventFrame:SetScript("OnEvent", function()
+        UpdateRotationHighlights()
+    end)
+
+    -- Poll initial state after a short delay
+    C_Timer.After(0, UpdateRotationHighlights)
 end

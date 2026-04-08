@@ -50,8 +50,7 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
 
     -- Hook the buff bar viewer
     self:SetupBuffBarHooks()
-    C_Timer.After(1, function() self:ReanchorBuffBars() end)
-    C_Timer.After(3, function() self:ReanchorBuffBars() end)
+    C_Timer.After(0, function() self:ReanchorBuffBars() end)
 
     self:RegisterColumn("buffBars", column)
     return column

@@ -42,8 +42,7 @@ function HUCDM:CreateBuffIcons(preset)
 
     -- Hook the buff icon viewer
     self:SetupBuffIconHooks()
-    C_Timer.After(1, function() self:ReanchorBuffIcons() end)
-    C_Timer.After(3, function() self:ReanchorBuffIcons() end)
+    C_Timer.After(0, function() self:ReanchorBuffIcons() end)
 end
 
 ----------------------------------------------------------------------
