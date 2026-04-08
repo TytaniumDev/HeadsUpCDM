@@ -51,6 +51,22 @@ read_globals = {
     "UIParent",
     "BackdropTemplateMixin",
 
+    C_SpellActivationOverlay = { other_fields = true },
+    C_SpellBook = { other_fields = true },
+    C_UnitAuras = { other_fields = true },
+    C_CooldownViewer = { other_fields = true },
+    "Enum",
+    "GetActionInfo",
+    "GetMacroSpell",
+    "HasAction",
+    "UnitPower",
+    "UnitPowerMax",
+    "InCombatLockdown",
+    "IsShiftKeyDown",
+    "BackdropTemplate",
+    "CooldownFrameTemplate",
+    "GameFontHighlight",
+
     -- Libraries
     "LibStub",
 
