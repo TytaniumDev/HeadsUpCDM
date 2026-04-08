@@ -1,53 +1,21 @@
--- HeadsUpCDM: Scan Blizzard CDM Essential Cooldown frames, reparent into vertical column
--- Uses the Cooldown Manager's EssentialCooldownViewer instead of action bar buttons,
--- so the player's action bars remain untouched.
+-- HeadsUpCDM: Hook Blizzard CDM Essential Cooldown frames and reposition them
+-- into a vertical layout. Frames stay parented to the CDM viewer — we only
+-- override their anchors. This survives frame recycling during spell transforms.
 
 local HUCDM = _G.HeadsUpCDM
 
 ----------------------------------------------------------------------
--- Resolve the spellID for a CDM Essential frame via C_CooldownViewer
+-- Resolve the spellID for a CDM frame via C_CooldownViewer
 ----------------------------------------------------------------------
 local function GetCDMFrameSpellID(frame)
     if not frame or not frame.cooldownID then return nil end
-    if not C_CooldownViewer or not C_CooldownViewer.GetCooldownViewerCooldownInfo then return nil end
-
     local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
     if not ok or not info then return nil end
-
-    -- overrideSpellID is the current display spell (may differ from base due to talents)
     return info.overrideSpellID or info.spellID
 end
 
 ----------------------------------------------------------------------
--- Get all active CDM Essential frames from the viewer's item pool
-----------------------------------------------------------------------
-local function GetEssentialFrames()
-    local viewer = _G["EssentialCooldownViewer"]
-    if not viewer or not viewer.itemFramePool then return {} end
-
-    local frames = {}
-    for frame in viewer.itemFramePool:EnumerateActive() do
-        frames[#frames + 1] = frame
-    end
-    return frames
-end
-
-----------------------------------------------------------------------
--- Find a CDM Essential frame matching a given spellID
-----------------------------------------------------------------------
-local function FindCDMFrameForSpell(spellID)
-    local frames = GetEssentialFrames()
-    for _, frame in ipairs(frames) do
-        local frameSpell = GetCDMFrameSpellID(frame)
-        if frameSpell == spellID then
-            return frame
-        end
-    end
-    return nil
-end
-
-----------------------------------------------------------------------
--- Build the action column
+-- Build the action column (anchor frames only — CDM frames get repositioned)
 ----------------------------------------------------------------------
 function HUCDM:CreateActionColumn(preset)
     local layout = self.layoutFrame
@@ -64,26 +32,11 @@ function HUCDM:CreateActionColumn(preset)
     column:Show()
 
     self.actionColumn = column
-    self.reparentedButtons = {}
-    self.savedButtonState = {}
     self.actionRows = {}
+    self.cdmFrameMap = {}    -- spellID -> our row frame
+    self.hookedCDMFrames = setmetatable({}, { __mode = "k" }) -- weak-keyed
 
-    self:ScanAndReparentCDMFrames(preset, iconSize, spacing)
-
-    self:RegisterColumn("actions", column)
-
-    return column
-end
-
-----------------------------------------------------------------------
--- Scan CDM Essential frames and reparent matching ones
-----------------------------------------------------------------------
-function HUCDM:ScanAndReparentCDMFrames(preset, iconSize, spacing)
-    local column = self.actionColumn
-    if not column then return end
-
-    local foundCount = 0
-
+    -- Create row anchor frames for each spell slot
     for i, spellInfo in ipairs(preset.spells) do
         local row = CreateFrame("Frame", "HUCDM_ActionRow" .. i, column)
         row:SetSize(iconSize, iconSize)
@@ -92,81 +45,95 @@ function HUCDM:ScanAndReparentCDMFrames(preset, iconSize, spacing)
         row.spellInfo = spellInfo
 
         self.actionRows[i] = row
+        self.cdmFrameMap[spellInfo.id] = row
+    end
 
-        local cdmFrame = FindCDMFrameForSpell(spellInfo.id)
-        if cdmFrame then
-            self:ReparentButton(cdmFrame, row, iconSize)
-            foundCount = foundCount + 1
-        else
-            -- Try with base spell (talent transforms may change the ID)
-            local baseID = C_Spell.GetBaseSpell and C_Spell.GetBaseSpell(spellInfo.id)
-            if baseID and baseID ~= spellInfo.id then
-                cdmFrame = FindCDMFrameForSpell(baseID)
-                if cdmFrame then
-                    self:ReparentButton(cdmFrame, row, iconSize)
-                    foundCount = foundCount + 1
-                end
-            end
-            if not cdmFrame then
-                self:Print("Warning: " .. spellInfo.name
-                    .. " not found in Essential Cooldowns. Add it via Edit Mode.")
+    -- Hook CDM frames and do initial positioning
+    self:HookCDMViewer()
+    C_Timer.After(0.5, function() self:RepositionCDMFrames() end)
+    C_Timer.After(2, function() self:RepositionCDMFrames() end)
+
+    self:RegisterColumn("actions", column)
+    return column
+end
+
+----------------------------------------------------------------------
+-- Hook the CDM viewer to detect frame creation and cooldown changes
+----------------------------------------------------------------------
+function HUCDM:HookCDMViewer()
+    -- Hook OnCooldownIDSet on the Essential mixin — fires when a frame gets
+    -- assigned a cooldown (including after pool recycle)
+    if CooldownViewerEssentialItemMixin
+        and CooldownViewerEssentialItemMixin.OnCooldownIDSet
+        and not self.cdmHooked then
+        self.cdmHooked = true
+        hooksecurefunc(CooldownViewerEssentialItemMixin, "OnCooldownIDSet", function()
+            -- Defer to let Blizzard finish its layout pass
+            C_Timer.After(0, function() self:RepositionCDMFrames() end)
+        end)
+    end
+
+    -- Also hook the pool acquire in case frames get created fresh
+    local viewer = _G["EssentialCooldownViewer"]
+    if viewer and viewer.itemFramePool and not self.cdmPoolHooked then
+        self.cdmPoolHooked = true
+        if viewer.itemFramePool.Acquire then
+            hooksecurefunc(viewer.itemFramePool, "Acquire", function()
+                C_Timer.After(0, function() self:RepositionCDMFrames() end)
+            end)
+        end
+    end
+end
+
+----------------------------------------------------------------------
+-- Reposition all matching CDM Essential frames into our vertical layout
+----------------------------------------------------------------------
+function HUCDM:RepositionCDMFrames()
+    local viewer = _G["EssentialCooldownViewer"]
+    if not viewer or not viewer.itemFramePool then return end
+    if not self.cdmFrameMap then return end
+
+    local iconSize = 48
+
+    for frame in viewer.itemFramePool:EnumerateActive() do
+        local spellID = GetCDMFrameSpellID(frame)
+        if spellID then
+            local row = self.cdmFrameMap[spellID]
+            if row then
+                -- Reposition into our row (don't reparent — stay in CDM viewer)
+                frame:ClearAllPoints()
+                frame:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+                frame:SetSize(iconSize, iconSize)
+                self.hookedCDMFrames[frame] = spellID
             end
         end
     end
-
-    if foundCount == 0 then
-        self:Print("No matching Essential Cooldowns found. "
-            .. "Open Edit Mode and add your rotation spells to Essential Cooldowns.")
-    end
 end
 
 ----------------------------------------------------------------------
--- Reparent a single CDM frame into a row
-----------------------------------------------------------------------
-function HUCDM:ReparentButton(btn, row, iconSize)
-    local numPoints = btn:GetNumPoints()
-    local origPoints = {}
-    for i = 1, numPoints do
-        origPoints[i] = { btn:GetPoint(i) }
-    end
-
-    self.savedButtonState[btn] = {
-        parent = btn:GetParent(),
-        points = origPoints,
-        width = btn:GetWidth(),
-        height = btn:GetHeight(),
-    }
-
-    btn:ClearAllPoints()
-    btn:SetParent(row)
-    btn:SetSize(iconSize, iconSize)
-    btn:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
-    btn:Show()
-
-    self.reparentedButtons[#self.reparentedButtons + 1] = btn
-end
-
-----------------------------------------------------------------------
--- Restore all reparented frames to original positions
+-- Restore all repositioned CDM frames (let CDM re-layout naturally)
 ----------------------------------------------------------------------
 function HUCDM:RestoreButtons()
-    for _, btn in ipairs(self.reparentedButtons or {}) do
-        local saved = self.savedButtonState[btn]
-        if saved then
-            btn:ClearAllPoints()
-            btn:SetParent(saved.parent)
-            btn:SetSize(saved.width, saved.height)
-            for _, pt in ipairs(saved.points) do
-                btn:SetPoint(pt[1], pt[2], pt[3], pt[4], pt[5])
+    -- We didn't reparent, so just clearing points is enough.
+    -- The CDM will reposition frames on its next layout pass.
+    local viewer = _G["EssentialCooldownViewer"]
+    if viewer and viewer.itemFramePool then
+        for frame in viewer.itemFramePool:EnumerateActive() do
+            if self.hookedCDMFrames and self.hookedCDMFrames[frame] then
+                frame:ClearAllPoints()
             end
         end
     end
-    self.reparentedButtons = {}
-    self.savedButtonState = {}
+    self.hookedCDMFrames = setmetatable({}, { __mode = "k" })
+
+    -- Trigger CDM to re-layout its frames
+    if viewer and viewer.Layout then
+        pcall(viewer.Layout, viewer)
+    end
 end
 
 ----------------------------------------------------------------------
--- Teardown action column
+-- Teardown
 ----------------------------------------------------------------------
 function HUCDM:DestroyActionColumn()
     self:RestoreButtons()
@@ -175,14 +142,13 @@ function HUCDM:DestroyActionColumn()
         self.actionColumn = nil
     end
     self.actionRows = {}
+    self.cdmFrameMap = {}
 end
 
 ----------------------------------------------------------------------
--- Re-scan (called when CDM frames change)
+-- Re-scan (called on events)
 ----------------------------------------------------------------------
 function HUCDM:RescanActionButtons()
     if not self.currentPreset or not self.actionColumn then return end
-    self:RestoreButtons()
-    local settings = self.db.profile.layout.columns.actions
-    self:ScanAndReparentCDMFrames(self.currentPreset, 48, settings.spacing)
+    self:RepositionCDMFrames()
 end
