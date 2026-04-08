@@ -1,57 +1,23 @@
--- HeadsUpCDM: Vertical buff duration bars with icons at bottom
+-- HeadsUpCDM: Reposition Blizzard CDM Buff Bar frames into a vertical column.
+-- Uses the same hook-and-reanchor pattern as ActionColumn and BuffIcons.
 
 local HUCDM = _G.HeadsUpCDM
 
+-- Per-frame data (weak-keyed)
+local barFrameData = setmetatable({}, { __mode = "k" })
+
 ----------------------------------------------------------------------
--- Create a single buff bar
+-- Resolve the spellID for a CDM buff bar frame
 ----------------------------------------------------------------------
-local function CreateBuffBar(parent, buffInfo, index, barWidth, barHeight)
-    local container = CreateFrame("Frame", "HUCDM_BuffBar" .. index, parent)
-    container:SetSize(barWidth, barHeight)
-
-    -- StatusBar (vertical, fills top-to-bottom as duration expires)
-    local bar = CreateFrame("StatusBar", nil, container)
-    local iconSize = barWidth
-    bar:SetSize(barWidth, barHeight - iconSize - 2)
-    bar:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
-    bar:SetOrientation("VERTICAL")
-    bar:SetMinMaxValues(0, 1)
-    bar:SetValue(1)
-    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-
-    local color = buffInfo.color or { 0.5, 0.5, 0.5 }
-    bar:SetStatusBarColor(color[1], color[2], color[3])
-
-    -- Background
-    local bgTex = bar:CreateTexture(nil, "BACKGROUND")
-    bgTex:SetAllPoints()
-    bgTex:SetColorTexture(0, 0, 0, 0.6)
-
-    -- Duration text (rotated vertical)
-    local text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    text:SetPoint("CENTER", bar, "CENTER", 0, 0)
-    text:SetFont(text:GetFont(), 8, "OUTLINE")
-    text:SetTextColor(1, 1, 1, 1)
-    text:SetRotation(math.rad(90))
-
-    -- Buff icon at bottom of bar
-    local icon = container:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(iconSize, iconSize)
-    icon:SetPoint("BOTTOM", container, "BOTTOM", 0, 0)
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    local tex = C_Spell.GetSpellTexture(buffInfo.id)
-    if tex then icon:SetTexture(tex) end
-
-    container.bar = bar
-    container.text = text
-    container.icon = icon
-    container.buffInfo = buffInfo
-
-    return container
+local function GetBarFrameSpellID(frame)
+    if not frame or not frame.cooldownID then return nil end
+    local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
+    if not ok or not info then return nil end
+    return info.overrideSpellID or info.spellID
 end
 
 ----------------------------------------------------------------------
--- Create all buff bars from preset defaults
+-- Build the buff bars column with mapping from preset
 ----------------------------------------------------------------------
 function HUCDM:CreateBuffBars(preset, totalHeight)
     local layout = self.layoutFrame
@@ -61,7 +27,7 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
     local barGap = 3
     local buffBarConfig = preset.buffBarDefaults or {}
 
-    -- Container column for all buff bars
+    -- Container column
     local column = CreateFrame("Frame", "HUCDM_BuffBarsColumn", layout)
     local columnWidth = (#buffBarConfig * barWidth) + ((#buffBarConfig - 1) * barGap)
     if columnWidth <= 0 then columnWidth = 1 end
@@ -69,104 +35,157 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
     column:Show()
 
     self.buffBarColumn = column
+    self.buffBarSpellSlots = {}  -- spellID -> { xOffset }
     self.buffBarFrames = {}
 
     for i, buffInfo in ipairs(buffBarConfig) do
-        local buffBar = CreateBuffBar(column, buffInfo, i, barWidth, totalHeight)
         local xOffset = (i - 1) * (barWidth + barGap)
-        buffBar:SetPoint("TOPLEFT", column, "TOPLEFT", xOffset, 0)
-        self.buffBarFrames[#self.buffBarFrames + 1] = buffBar
+        self.buffBarSpellSlots[buffInfo.id] = {
+            xOffset = xOffset,
+            barWidth = barWidth,
+            totalHeight = totalHeight,
+            buffInfo = buffInfo,
+        }
     end
 
-    -- Register for aura updates
-    self:RegisterBuffBarEvents()
+    -- Hook the buff bar viewer
+    self:SetupBuffBarHooks()
+    C_Timer.After(1, function() self:ReanchorBuffBars() end)
+    C_Timer.After(3, function() self:ReanchorBuffBars() end)
 
-    -- Register column with layout system
     self:RegisterColumn("buffBars", column)
-
     return column
 end
 
 ----------------------------------------------------------------------
--- Update all buff bars based on current auras
+-- Hook the BuffBarCooldownViewer
 ----------------------------------------------------------------------
-function HUCDM:UpdateBuffBars()
-    for _, buffBar in ipairs(self.buffBarFrames or {}) do
-        local buffInfo = buffBar.buffInfo
-        -- Deferred texture fix for bar icons
-        if not buffBar.textureLoaded and buffBar.icon then
-            local tex = C_Spell.GetSpellTexture(buffInfo.id)
-            if tex then
-                buffBar.icon:SetTexture(tex)
-                buffBar.textureLoaded = true
+function HUCDM:SetupBuffBarHooks()
+    if self.buffBarHooksInstalled then return end
+
+    local viewer = _G["BuffBarCooldownViewer"]
+    if not viewer then return end
+
+    self.buffBarHooksInstalled = true
+
+    -- Hook OnCooldownIDSet on buff bar mixin
+    if CooldownViewerBuffBarItemMixin
+        and CooldownViewerBuffBarItemMixin.OnCooldownIDSet then
+        hooksecurefunc(CooldownViewerBuffBarItemMixin, "OnCooldownIDSet", function(frame)
+            local fd = barFrameData[frame]
+            if fd then fd.spellID = nil end
+            self:QueueBuffBarReanchor()
+        end)
+    end
+
+    -- Hook pool acquire
+    if viewer.itemFramePool and viewer.itemFramePool.Acquire then
+        hooksecurefunc(viewer.itemFramePool, "Acquire", function()
+            self:QueueBuffBarReanchor()
+        end)
+    end
+
+    -- Hook Layout
+    if viewer.Layout then
+        hooksecurefunc(viewer, "Layout", function()
+            self:QueueBuffBarReanchor()
+        end)
+    end
+    if viewer.RefreshLayout then
+        hooksecurefunc(viewer, "RefreshLayout", function()
+            self:ReanchorBuffBars()
+        end)
+    end
+
+    -- Throttle frame
+    local reanchorFrame = CreateFrame("Frame", "HUCDM_BuffBarReanchor")
+    reanchorFrame:Hide()
+    self.buffBarReanchorDirty = false
+    reanchorFrame:SetScript("OnUpdate", function(f)
+        if not self.buffBarReanchorDirty then f:Hide(); return end
+        self.buffBarReanchorDirty = false
+        f:Hide()
+        self:ReanchorBuffBars()
+    end)
+    self.buffBarReanchorFrame = reanchorFrame
+end
+
+function HUCDM:QueueBuffBarReanchor()
+    self.buffBarReanchorDirty = true
+    if self.buffBarReanchorFrame then self.buffBarReanchorFrame:Show() end
+end
+
+----------------------------------------------------------------------
+-- Reanchor buff bar frames into our vertical column
+----------------------------------------------------------------------
+function HUCDM:ReanchorBuffBars()
+    local viewer = _G["BuffBarCooldownViewer"]
+    if not viewer or not viewer.itemFramePool then return end
+    if not self.buffBarSpellSlots or not self.buffBarColumn then return end
+
+    for frame in viewer.itemFramePool:EnumerateActive() do
+        local spellID = GetBarFrameSpellID(frame)
+        if spellID then
+            local slot = self.buffBarSpellSlots[spellID]
+            if slot then
+                frame:ClearAllPoints()
+                frame:SetPoint("TOPLEFT", self.buffBarColumn, "TOPLEFT", slot.xOffset, 0)
+                frame:SetSize(slot.barWidth, slot.totalHeight)
+                frame:Show()
+
+                local fd = barFrameData[frame]
+                if not fd then fd = {}; barFrameData[frame] = fd end
+                fd.spellID = spellID
+                fd.anchor = { "TOPLEFT", self.buffBarColumn, "TOPLEFT", slot.xOffset, 0 }
+
+                if not fd.hooked then
+                    fd.hooked = true
+                    hooksecurefunc(frame, "SetPoint", function(_, _, relativeTo)
+                        local d = barFrameData[frame]
+                        if not d or not d.anchor then return end
+                        if relativeTo ~= d.anchor[2] then
+                            frame:ClearAllPoints()
+                            frame:SetPoint(
+                                d.anchor[1], d.anchor[2], d.anchor[3],
+                                d.anchor[4], d.anchor[5]
+                            )
+                        end
+                    end)
+                end
             end
         end
-        pcall(function()
-            local aura = C_UnitAuras.GetPlayerAuraBySpellID(buffInfo.id)
-            if aura and aura.duration and aura.duration > 0 then
-                local remaining = aura.expirationTime - GetTime()
-                local pct = remaining / aura.duration
-                if pct < 0 then pct = 0 end
-                if pct > 1 then pct = 1 end
-                buffBar.bar:SetValue(pct)
-
-                if self.db.profile.buffBars.showText then
-                    buffBar.text:SetText(string.format("%.1f", remaining))
-                else
-                    buffBar.text:SetText("")
-                end
-
-                buffBar:SetAlpha(1.0)
-            elseif aura then
-                -- Permanent buff (no duration)
-                buffBar.bar:SetValue(1)
-                buffBar.text:SetText("")
-                buffBar:SetAlpha(1.0)
-            else
-                -- Buff not active
-                buffBar.bar:SetValue(0)
-                buffBar.text:SetText("")
-                buffBar:SetAlpha(0.3)
-            end
-        end)
     end
 end
 
 ----------------------------------------------------------------------
--- Event registration
+-- Update (compatibility with Core.lua calls)
 ----------------------------------------------------------------------
-function HUCDM:RegisterBuffBarEvents()
-    if not self.buffBarEventFrame then
-        self.buffBarEventFrame = CreateFrame("Frame", "HUCDM_BuffBarEvents", UIParent)
-    end
-
-    local f = self.buffBarEventFrame
-    f:RegisterUnitEvent("UNIT_AURA", "player")
-    f:SetScript("OnEvent", function()
-        self:UpdateBuffBars()
-    end)
-
-    -- Ticker for smooth bar drain
-    if self.buffBarTicker then self.buffBarTicker:Cancel() end
-    self.buffBarTicker = C_Timer.NewTicker(0.1, function()
-        self:UpdateBuffBars()
-    end)
+function HUCDM:UpdateBuffBars()
+    self:ReanchorBuffBars()
 end
 
 ----------------------------------------------------------------------
 -- Teardown
 ----------------------------------------------------------------------
 function HUCDM:DestroyBuffBars()
-    if self.buffBarEventFrame then
-        self.buffBarEventFrame:UnregisterAllEvents()
+    for _, fd in pairs(barFrameData) do
+        fd.anchor = nil
+        fd.spellID = nil
     end
-    if self.buffBarTicker then
-        self.buffBarTicker:Cancel()
-        self.buffBarTicker = nil
+    if self.buffBarReanchorFrame then
+        self.buffBarReanchorFrame:Hide()
     end
     if self.buffBarColumn then
         self.buffBarColumn:Hide()
         self.buffBarColumn = nil
     end
+    self.buffBarSpellSlots = {}
     self.buffBarFrames = {}
+end
+
+----------------------------------------------------------------------
+-- Event registration (kept for compatibility)
+----------------------------------------------------------------------
+function HUCDM:RegisterBuffBarEvents()
+    -- No longer needed — CDM hooks handle everything
 end

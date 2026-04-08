@@ -67,6 +67,8 @@ read_globals = {
     "CooldownFrameTemplate",
     "GameFontHighlight",
     "CooldownViewerEssentialItemMixin",
+    "CooldownViewerBuffIconItemMixin",
+    "CooldownViewerBuffBarItemMixin",
 
     -- Libraries
     "LibStub",
