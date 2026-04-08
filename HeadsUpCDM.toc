@@ -15,11 +15,35 @@ libs/AceAddon-3.0/AceAddon-3.0.lua
 libs/AceConsole-3.0/AceConsole-3.0.lua
 libs/AceEvent-3.0/AceEvent-3.0.lua
 libs/AceDB-3.0/AceDB-3.0.lua
+# AceGUI-3.0 (widgets loaded directly instead of via AceGUI-3.0.xml)
 libs/AceGUI-3.0/AceGUI-3.0.lua
-libs/AceConfig-3.0/AceConfig-3.0.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-BlizOptionsGroup.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-DropDownGroup.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-Frame.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-InlineGroup.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-ScrollFrame.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-SimpleGroup.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-TabGroup.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-TreeGroup.lua
+libs/AceGUI-3.0/widgets/AceGUIContainer-Window.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-Button.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-CheckBox.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-ColorPicker.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-DropDown.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-DropDown-Items.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-EditBox.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-Heading.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-Icon.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-InteractiveLabel.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-Keybinding.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-Label.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-MultiLineEditBox.lua
+libs/AceGUI-3.0/widgets/AceGUIWidget-Slider.lua
+# AceConfig-3.0 (sub-modules loaded before main file)
 libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua
 libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua
 libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua
+libs/AceConfig-3.0/AceConfig-3.0.lua
 
 # Core
 src/Config.lua
