@@ -8,7 +8,7 @@ HUCDM.SpellData = {}
 -- Hero build detection: spellIDs that indicate which hero tree is active
 ----------------------------------------------------------------------
 HUCDM.SpellData.buildMarkers = {
-    DARK_RANGER = 472925,       -- Black Arrow (hero talent ability)
+    DARK_RANGER = 466930,       -- Black Arrow (hero talent ability)
     PACK_LEADER = 424687,       -- Howl of the Pack Leader (hero talent passive)
     SENTINEL    = 429444,       -- Moonlight Chakram (hero talent ability)
 }
@@ -42,7 +42,7 @@ HUCDM.SpellData.presets = {
                 },
             },
             {
-                id = 460827, name = "Wild Thrash",
+                id = 1264359, name = "Wild Thrash",
                 pairedBuffs = {
                     { id = 118455, name = "Beast Cleave" },
                 },
@@ -70,7 +70,7 @@ HUCDM.SpellData.presets = {
                 },
             },
             {
-                id = 472925, name = "Black Arrow",
+                id = 466930, name = "Black Arrow",
                 pairedBuffs = {
                     { id = 468565, name = "Withering Fire" },
                 },
@@ -82,9 +82,9 @@ HUCDM.SpellData.presets = {
                     { id = 19574, name = "Bestial Wrath", isBuff = true },
                 },
             },
-            { id = 471880, name = "Wailing Arrow", pairedBuffs = {} },
+            { id = 459555, name = "Wailing Arrow", pairedBuffs = {} },
             {
-                id = 460827, name = "Wild Thrash",
+                id = 1264359, name = "Wild Thrash",
                 pairedBuffs = {
                     { id = 118455, name = "Beast Cleave" },
                 },
@@ -119,12 +119,12 @@ HUCDM.SpellData.presets = {
                     { id = 260242, name = "Precise Shots" },
                 },
             },
-            { id = 472925, name = "Black Arrow", pairedBuffs = {} },
+            { id = 466930, name = "Black Arrow", pairedBuffs = {} },
             {
                 id = 288613, name = "Trueshot",
                 pairedBuffs = {
                     { id = 288613, name = "Trueshot", isBuff = true },
-                    { id = 471880, name = "Wailing Arrow" },
+                    { id = 459555, name = "Wailing Arrow" },
                 },
             },
             { id = 260243, name = "Volley", pairedBuffs = {} },

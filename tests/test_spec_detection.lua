@@ -38,13 +38,13 @@ describe("SpecDetection", function()
         end)
 
         it("should return BM_DARK_RANGER for BM spec with Dark Ranger marker", function()
-            local knownSpells = { [472925] = true }  -- Black Arrow
+            local knownSpells = { [466930] = true }  -- Black Arrow
             local key = HUCDM:DetectBuild(1, function(id) return knownSpells[id] or false end)
             assert.equal("BM_DARK_RANGER", key)
         end)
 
         it("should return MM_DARK_RANGER for MM spec with Dark Ranger marker", function()
-            local knownSpells = { [472925] = true }  -- Black Arrow
+            local knownSpells = { [466930] = true }  -- Black Arrow
             local key = HUCDM:DetectBuild(2, function(id) return knownSpells[id] or false end)
             assert.equal("MM_DARK_RANGER", key)
         end)

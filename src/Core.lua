@@ -137,6 +137,8 @@ function HUCDM:SlashCommand(input)
         self:Unlock()
     elseif cmd == "reset" then
         self:ResetPosition()
+    elseif cmd == "debug" then
+        self:DebugCDMFrames()
         if self.layoutFrame then
             self.layoutFrame:ClearAllPoints()
             local pos = self.db.profile.position
@@ -175,4 +177,31 @@ end
 function HUCDM:ResetPosition()
     self.db.profile.position = { point = "CENTER", x = 0, y = 200 }
     self:Print("Position reset to default.")
+end
+
+function HUCDM:DebugCDMFrames()
+    local viewer = _G["EssentialCooldownViewer"]
+    if not viewer or not viewer.itemFramePool then
+        self:Print("EssentialCooldownViewer not found")
+        return
+    end
+    self:Print("--- Essential CDM Frames ---")
+    for frame in viewer.itemFramePool:EnumerateActive() do
+        local cdID = frame.cooldownID
+        local info = cdID and C_CooldownViewer.GetCooldownViewerCooldownInfo(cdID)
+        if info then
+            local name = C_Spell.GetSpellName(info.spellID) or "?"
+            self:Print(string.format("cdID=%s spell=%s override=%s name=%s",
+                tostring(cdID), tostring(info.spellID),
+                tostring(info.overrideSpellID), name))
+        else
+            self:Print("cdID=" .. tostring(cdID) .. " (no info)")
+        end
+    end
+    self:Print("--- Our preset spells ---")
+    if self.currentPreset then
+        for _, s in ipairs(self.currentPreset.spells) do
+            self:Print(string.format("id=%d name=%s", s.id, s.name))
+        end
+    end
 end
