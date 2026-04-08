@@ -204,4 +204,31 @@ function HUCDM:DebugCDMFrames()
             self:Print(string.format("id=%d name=%s", s.id, s.name))
         end
     end
+
+    self:Print("--- BuffIcon CDM Frames ---")
+    local buffViewer = _G["BuffIconCooldownViewer"]
+    if buffViewer and buffViewer.itemFramePool then
+        local count = 0
+        for frame in buffViewer.itemFramePool:EnumerateActive() do
+            count = count + 1
+            local cdID = frame.cooldownID
+            local info = cdID and C_CooldownViewer.GetCooldownViewerCooldownInfo(cdID)
+            if info then
+                local name = C_Spell.GetSpellName(info.spellID) or "?"
+                self:Print(string.format("  cdID=%s spell=%s override=%s name=%s",
+                    tostring(cdID), tostring(info.spellID),
+                    tostring(info.overrideSpellID), name))
+            end
+        end
+        self:Print("  Total active buff frames: " .. count)
+    else
+        self:Print("  BuffIconCooldownViewer not found")
+    end
+
+    self:Print("--- Our paired buff IDs ---")
+    if self.buffSpellToRow then
+        for buffID, slot in pairs(self.buffSpellToRow) do
+            self:Print(string.format("  id=%d name=%s", buffID, slot.buffInfo.name))
+        end
+    end
 end

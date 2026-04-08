@@ -30,7 +30,7 @@ HUCDM.SpellData.presets = {
             {
                 id = 34026, name = "Kill Command",
                 pairedBuffs = {
-                    { id = 454970, name = "Nature's Ally" },
+                    { id = 1273126, name = "Nature's Ally" },
                     { id = 424687, name = "Howl of the Pack Leader" },
                 },
             },
@@ -44,15 +44,15 @@ HUCDM.SpellData.presets = {
             {
                 id = 1264359, name = "Wild Thrash",
                 pairedBuffs = {
-                    { id = 118455, name = "Beast Cleave" },
+                    { id = 115939, name = "Beast Cleave" },
                 },
             },
             { id = 193455, name = "Cobra Shot", pairedBuffs = {} },
         },
         buffBarDefaults = {
             { id = 19574,  name = "Bestial Wrath", color = { 0.83, 0.33, 0 } },
-            { id = 454970, name = "Nature's Ally", color = { 0.12, 0.52, 0.29 } },
-            { id = 118455, name = "Beast Cleave", color = { 0.16, 0.50, 0.73 } },
+            { id = 1273126, name = "Nature's Ally", color = { 0.12, 0.52, 0.29 } },
+            { id = 115939, name = "Beast Cleave", color = { 0.16, 0.50, 0.73 } },
         },
         resourceThresholds = {
             red = 30,       -- Kill Command cost
@@ -66,13 +66,13 @@ HUCDM.SpellData.presets = {
             {
                 id = 34026, name = "Kill Command",
                 pairedBuffs = {
-                    { id = 454970, name = "Nature's Ally" },
+                    { id = 1273126, name = "Nature's Ally" },
                 },
             },
             {
                 id = 466930, name = "Black Arrow",
                 pairedBuffs = {
-                    { id = 468565, name = "Withering Fire" },
+                    { id = 466990, name = "Withering Fire" },
                 },
             },
             { id = 217200, name = "Barbed Shot", pairedBuffs = {} },
@@ -86,15 +86,15 @@ HUCDM.SpellData.presets = {
             {
                 id = 1264359, name = "Wild Thrash",
                 pairedBuffs = {
-                    { id = 118455, name = "Beast Cleave" },
+                    { id = 115939, name = "Beast Cleave" },
                 },
             },
             { id = 193455, name = "Cobra Shot", pairedBuffs = {} },
         },
         buffBarDefaults = {
             { id = 19574,  name = "Bestial Wrath", color = { 0.83, 0.33, 0 } },
-            { id = 454970, name = "Nature's Ally", color = { 0.12, 0.52, 0.29 } },
-            { id = 118455, name = "Beast Cleave", color = { 0.16, 0.50, 0.73 } },
+            { id = 1273126, name = "Nature's Ally", color = { 0.12, 0.52, 0.29 } },
+            { id = 115939, name = "Beast Cleave", color = { 0.16, 0.50, 0.73 } },
         },
         resourceThresholds = {
             red = 30,
