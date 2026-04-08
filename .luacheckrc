@@ -70,6 +70,9 @@ read_globals = {
     "CooldownViewerEssentialItemMixin",
     "CooldownViewerBuffIconItemMixin",
     "CooldownViewerBuffBarItemMixin",
+    "EventRegistry",
+    C_AssistedCombat = { other_fields = true },
+    "AssistedCombatManager",
 
     -- Libraries
     "LibStub",

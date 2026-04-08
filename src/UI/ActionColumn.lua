@@ -244,11 +244,12 @@ function HUCDM:RescanActionButtons()
 end
 
 ----------------------------------------------------------------------
--- Rotation assist glow: listen for SPELL_ACTIVATION_OVERLAY events
--- and show/hide a glow border on matching CDM frames
+-- Rotation assist glow: use WoW 12.0 C_AssistedCombat API
+-- Fires when the rotation helper suggestion changes
 ----------------------------------------------------------------------
 local GLOW_SIZE = 3
 local glowFrames = setmetatable({}, { __mode = "k" })
+local glowedFrames = {}
 
 local function GetOrCreateGlow(parent)
     if glowFrames[parent] then return glowFrames[parent] end
@@ -277,35 +278,53 @@ local function GetOrCreateGlow(parent)
     return glow
 end
 
+local function UpdateRotationHighlights()
+    local self = _G.HeadsUpCDM
+    if not self.cdmSpellSlots then return end
+
+    -- Get the current suggested spell from the rotation helper
+    local suggestedSpell = C_AssistedCombat and C_AssistedCombat.GetNextCastSpell
+        and C_AssistedCombat.GetNextCastSpell()
+
+    -- Clear all current glows
+    for frame in pairs(glowedFrames) do
+        local glow = glowFrames[frame]
+        if glow then glow:Hide() end
+    end
+    wipe(glowedFrames)
+
+    if not suggestedSpell then return end
+
+    -- Find CDM frame(s) matching the suggested spell
+    local viewer = _G["EssentialCooldownViewer"]
+    if not viewer or not viewer.itemFramePool then return end
+
+    for frame in viewer.itemFramePool:EnumerateActive() do
+        local fd = frameData[frame]
+        if fd and fd.spellID and fd.spellID == suggestedSpell then
+            local glow = GetOrCreateGlow(frame)
+            glow:Show()
+            glowedFrames[frame] = true
+        end
+    end
+end
+
 function HUCDM:SetupRotationGlow()
     if self.glowEventsInstalled then return end
     self.glowEventsInstalled = true
 
-    local glowEventFrame = CreateFrame("Frame", "HUCDM_GlowEvents", UIParent)
-    glowEventFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
-    glowEventFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE")
+    -- WoW 12.0: EventRegistry callback for rotation helper changes
+    if EventRegistry and EventRegistry.RegisterCallback then
+        EventRegistry:RegisterCallback(
+            "AssistedCombatManager.OnAssistedHighlightSpellChange",
+            UpdateRotationHighlights,
+            "HUCDM_RotationGlow"
+        )
+    end
 
-    glowEventFrame:SetScript("OnEvent", function(_, event, spellID)
-        if not self.cdmSpellSlots then return end
-
-        local isShow = (event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
-
-        -- Find CDM frame for this spellID
-        local viewer = _G["EssentialCooldownViewer"]
-        if not viewer or not viewer.itemFramePool then return end
-
-        for frame in viewer.itemFramePool:EnumerateActive() do
-            local fd = frameData[frame]
-            if fd and fd.spellID == spellID then
-                local glow = GetOrCreateGlow(frame)
-                if isShow then
-                    glow:Show()
-                else
-                    glow:Hide()
-                end
-            end
-        end
-    end)
-
-    self.glowEventFrame = glowEventFrame
+    -- Fallback: hook the manager's update method
+    if AssistedCombatManager and AssistedCombatManager.UpdateAllAssistedHighlightFramesForSpell then
+        hooksecurefunc(AssistedCombatManager, "UpdateAllAssistedHighlightFramesForSpell",
+            UpdateRotationHighlights)
+    end
 end
