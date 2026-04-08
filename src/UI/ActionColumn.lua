@@ -207,6 +207,24 @@ function HUCDM:ReanchorCDMFrames()
 
     -- Collapse rows with no CDM frame and re-layout
     self:RelayoutRows()
+
+    -- Sync resource bar and buff bar heights to match action column
+    if self.actionColumn and self.resourceBar then
+        local h = self.actionColumn:GetHeight()
+        self.resourceBar:SetHeight(h)
+        if self.resourceColumn then self.resourceColumn:SetHeight(h) end
+    end
+    if self.actionColumn and self.buffBarColumn then
+        local h = self.actionColumn:GetHeight()
+        self.buffBarColumn:SetHeight(h)
+        for _, bar in ipairs(self.buffBarFrames or {}) do
+            bar:SetHeight(h)
+            if bar.bar then
+                local barIconSize = bar:GetWidth()
+                bar.bar:SetHeight(h - barIconSize - 2)
+            end
+        end
+    end
 end
 
 ----------------------------------------------------------------------
