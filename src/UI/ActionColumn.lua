@@ -326,13 +326,34 @@ local function UpdateRotationHighlights()
     local viewer = _G["EssentialCooldownViewer"]
     if not viewer or not viewer.itemFramePool then return end
 
+    -- Also resolve the base spell of the suggestion for matching
+    local suggestedBase = C_Spell.GetBaseSpell and C_Spell.GetBaseSpell(suggestedSpell)
+
     for frame in viewer.itemFramePool:EnumerateActive() do
         local fd = frameData[frame]
-        if fd and fd.spellID and fd.spellID == suggestedSpell then
-            local glow = GetOrCreateGlow(frame)
-            glow:Show()
-            if glow.pulseAnim then glow.pulseAnim:Play() end
-            glowedFrames[frame] = true
+        if fd and fd.spellID then
+            -- Match against: exact spellID, base spell, or CDM's full info
+            local matched = (fd.spellID == suggestedSpell)
+                or (suggestedBase and fd.spellID == suggestedBase)
+
+            -- Also check CDM info for both spellID and overrideSpellID
+            if not matched and frame.cooldownID then
+                local ok, info = pcall(
+                    C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
+                if ok and info then
+                    matched = (info.spellID == suggestedSpell)
+                        or (info.overrideSpellID == suggestedSpell)
+                        or (suggestedBase and info.spellID == suggestedBase)
+                        or (suggestedBase and info.overrideSpellID == suggestedBase)
+                end
+            end
+
+            if matched then
+                local glow = GetOrCreateGlow(frame)
+                glow:Show()
+                if glow.pulseAnim then glow.pulseAnim:Play() end
+                glowedFrames[frame] = true
+            end
         end
     end
 end
