@@ -29,6 +29,6 @@ end
 function HUCDM:DetectCurrentBuild()
     local specIndex = C_SpecializationInfo.GetSpecialization()
     return self:DetectBuild(specIndex, function(spellID)
-        return C_Spell.IsSpellUsable(spellID) or false
+        return IsSpellKnown(spellID)
     end)
 end

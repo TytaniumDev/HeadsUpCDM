@@ -63,6 +63,7 @@ read_globals = {
     "UnitPowerMax",
     "InCombatLockdown",
     "IsShiftKeyDown",
+    "IsSpellKnown",
     "BackdropTemplate",
     "CooldownFrameTemplate",
     "GameFontHighlight",
