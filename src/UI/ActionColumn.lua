@@ -161,6 +161,11 @@ function HUCDM:ReanchorCDMFrames()
 
     local iconSize = 48
 
+    -- Reset flags before scanning
+    for _, row in ipairs(self.actionRows or {}) do
+        row.hasCDMFrame = false
+    end
+
     for frame in viewer.itemFramePool:EnumerateActive() do
         local spellID = GetCDMFrameSpellID(frame)
         if spellID then
@@ -195,8 +200,43 @@ function HUCDM:ReanchorCDMFrames()
                 end
 
                 frame:Show()
+                slot.row.hasCDMFrame = true
             end
         end
+    end
+
+    -- Collapse rows with no CDM frame and re-layout
+    self:RelayoutRows()
+end
+
+----------------------------------------------------------------------
+-- Re-layout rows: hide empty rows, compact visible ones
+----------------------------------------------------------------------
+function HUCDM:RelayoutRows()
+    if not self.actionRows or not self.actionColumn then return end
+
+    local iconSize = 48
+    local settings = self.db.profile.layout.columns.actions
+    local spacing = settings.spacing
+    local yPos = 0
+    local visibleCount = 0
+
+    for _, row in ipairs(self.actionRows) do
+        if row.hasCDMFrame then
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", self.actionColumn, "TOPLEFT", 0, -yPos)
+            row:Show()
+            yPos = yPos + iconSize + spacing
+            visibleCount = visibleCount + 1
+        else
+            row:Hide()
+        end
+    end
+
+    -- Resize column to fit only visible rows
+    if visibleCount > 0 then
+        local totalHeight = (visibleCount * iconSize) + ((visibleCount - 1) * spacing)
+        self.actionColumn:SetSize(iconSize, totalHeight)
     end
 end
 
