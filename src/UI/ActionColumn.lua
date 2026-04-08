@@ -248,16 +248,31 @@ local LCG = LibStub("LibCustomGlow-1.0")
 local GLOW_KEY = "HUCDM_Rotation"
 local glowedFrames = {}
 
-local function StartGlow(frame, styleIdx, r, g, b)
+local function StartGlow(frame, styleIdx, r, g, b, opts)
     local color = { r, g, b, 1 }
+    opts = opts or {}
+    local speed = opts.speed or 1.0
+    local thickness = opts.thickness or 2
+    local scale = opts.scale or 1.0
+    local numLines = opts.numLines or 8
+
     if styleIdx == 1 then
-        LCG.ProcGlow_Start(frame, { color = color, key = GLOW_KEY, startAnim = true })
+        LCG.ProcGlow_Start(frame, {
+            color = color, key = GLOW_KEY, startAnim = true,
+            duration = 1.0 / speed,
+        })
     elseif styleIdx == 2 then
-        LCG.ButtonGlow_Start(frame, color)
+        LCG.ButtonGlow_Start(frame, color, speed)
     elseif styleIdx == 3 then
-        LCG.PixelGlow_Start(frame, color, nil, nil, nil, nil, nil, nil, nil, GLOW_KEY)
+        LCG.PixelGlow_Start(
+            frame, color, numLines, speed * 0.25, nil, thickness,
+            nil, nil, nil, GLOW_KEY
+        )
     elseif styleIdx == 4 then
-        LCG.AutoCastGlow_Start(frame, color, nil, nil, nil, nil, nil, GLOW_KEY)
+        LCG.AutoCastGlow_Start(
+            frame, color, numLines, speed, scale,
+            nil, nil, GLOW_KEY
+        )
     end
 end
 
@@ -315,7 +330,13 @@ local function UpdateRotationHighlights()
             end
 
             if matched then
-                StartGlow(frame, glowStyle, gc[1], gc[2], gc[3])
+                local glowOpts = {
+                    speed = self.db and self.db.profile.visuals.glowSpeed or 1.0,
+                    thickness = self.db and self.db.profile.visuals.glowThickness or 2,
+                    scale = self.db and self.db.profile.visuals.glowScale or 1.0,
+                    numLines = self.db and self.db.profile.visuals.glowLines or 8,
+                }
+                StartGlow(frame, glowStyle, gc[1], gc[2], gc[3], glowOpts)
                 glowedFrames[frame] = glowStyle
             end
         end

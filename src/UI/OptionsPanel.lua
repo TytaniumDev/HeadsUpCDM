@@ -259,10 +259,78 @@ function HUCDM:SetupOptions()
                             end
                         end,
                     },
+                    glowColor = {
+                        name = "Glow Color",
+                        desc = "Color of the rotation glow effect",
+                        type = "color",
+                        order = 4,
+                        get = function()
+                            local c = self.db.profile.visuals.glowColor
+                            return c[1], c[2], c[3]
+                        end,
+                        set = function(_, r, g, b)
+                            self.db.profile.visuals.glowColor = { r, g, b }
+                            if self.UpdateRotationHighlights then
+                                self:UpdateRotationHighlights()
+                            end
+                        end,
+                    },
+                    glowSpeed = {
+                        name = "Glow Speed",
+                        desc = "Animation speed multiplier",
+                        type = "range", min = 0.2, max = 3.0, step = 0.1,
+                        order = 5,
+                        get = function() return self.db.profile.visuals.glowSpeed end,
+                        set = function(_, val)
+                            self.db.profile.visuals.glowSpeed = val
+                            if self.UpdateRotationHighlights then
+                                self:UpdateRotationHighlights()
+                            end
+                        end,
+                    },
+                    glowThickness = {
+                        name = "Glow Thickness",
+                        desc = "Border thickness (Pixel Glow)",
+                        type = "range", min = 1, max = 6, step = 1,
+                        order = 6,
+                        get = function() return self.db.profile.visuals.glowThickness end,
+                        set = function(_, val)
+                            self.db.profile.visuals.glowThickness = val
+                            if self.UpdateRotationHighlights then
+                                self:UpdateRotationHighlights()
+                            end
+                        end,
+                    },
+                    glowScale = {
+                        name = "Glow Scale",
+                        desc = "Size multiplier (Autocast Shine)",
+                        type = "range", min = 0.5, max = 3.0, step = 0.1,
+                        order = 7,
+                        get = function() return self.db.profile.visuals.glowScale end,
+                        set = function(_, val)
+                            self.db.profile.visuals.glowScale = val
+                            if self.UpdateRotationHighlights then
+                                self:UpdateRotationHighlights()
+                            end
+                        end,
+                    },
+                    glowLines = {
+                        name = "Glow Lines/Particles",
+                        desc = "Number of particles or lines",
+                        type = "range", min = 1, max = 16, step = 1,
+                        order = 8,
+                        get = function() return self.db.profile.visuals.glowLines end,
+                        set = function(_, val)
+                            self.db.profile.visuals.glowLines = val
+                            if self.UpdateRotationHighlights then
+                                self:UpdateRotationHighlights()
+                            end
+                        end,
+                    },
                     buffCountdown = {
                         name = "Buff Icon Countdown Text",
                         type = "toggle",
-                        order = 10,
+                        order = 20,
                         get = function() return self.db.profile.visuals.buffCountdownText end,
                         set = function(_, val)
                             self.db.profile.visuals.buffCountdownText = val

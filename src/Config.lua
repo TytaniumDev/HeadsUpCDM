@@ -40,6 +40,10 @@ HUCDM.defaults = {
             cooldownColor = { 1, 0, 0 },
             glowColor = { 1, 0.84, 0 },
             glowStyle = 1,  -- 1=Proc, 2=Button, 3=Pixel, 4=Autocast
+            glowSpeed = 1.0,
+            glowThickness = 2,
+            glowScale = 1.0,
+            glowLines = 8,
             buffCountdownText = false,
             buffCountdownFontSize = 12,
         },
