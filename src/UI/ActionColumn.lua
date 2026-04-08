@@ -252,10 +252,11 @@ function HUCDM:RelayoutRows()
     end
 
     -- Resize column to fit only visible rows
+    local totalHeight = 0
     if visibleCount > 0 then
-        local totalHeight = (visibleCount * iconSize) + ((visibleCount - 1) * spacing)
-        self.actionColumn:SetSize(iconSize, totalHeight)
+        totalHeight = (visibleCount * iconSize) + ((visibleCount - 1) * spacing)
     end
+    self.actionColumn:SetSize(iconSize, totalHeight)
 end
 
 ----------------------------------------------------------------------

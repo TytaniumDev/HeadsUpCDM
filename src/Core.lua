@@ -109,8 +109,12 @@ function HUCDM:OnActionBarChanged()
     if InCombatLockdown() then
         self.pendingRescan = true
     else
-        C_Timer.After(0.5, function()
+        if self.actionBarUpdateTimer then
+            self.actionBarUpdateTimer:Cancel()
+        end
+        self.actionBarUpdateTimer = C_Timer.NewTimer(0.2, function()
             self:RescanActionButtons()
+            self.actionBarUpdateTimer = nil
         end)
     end
 end
