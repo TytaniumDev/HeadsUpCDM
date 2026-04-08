@@ -2,10 +2,15 @@
 -- Run with: busted tests/test_config.lua
 
 -- Minimal stubs for WoW APIs and libraries
-_G.LibStub = function()
+_G.LibStub = function(name)
+    if name == "AceConfigDialog-3.0" then
+        return { Open = function() end, AddToBlizOptions = function() end }
+    elseif name == "AceConfig-3.0" then
+        return { RegisterOptionsTable = function() end }
+    end
     local addon = {}
-    addon.NewAddon = function(_, name, ...)
-        addon.name = name
+    addon.NewAddon = function(_, addonName, ...)
+        addon.name = addonName
         addon.Print = function() end
         addon.RegisterChatCommand = function() end
         addon.RegisterEvent = function() end
@@ -19,12 +24,41 @@ _G.LibStub = function()
 end
 
 _G.strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
+_G.C_Timer = { After = function() end, NewTicker = function() return { Cancel = function() end } end }
+_G.InCombatLockdown = function() return false end
+_G.IsShiftKeyDown = function() return false end
 
 -- Load source files in order
 dofile("src/Config.lua")
 dofile("src/Core.lua")
 
+-- Stub out all UI-module functions that Core.lua calls (those modules aren't loaded in tests).
+-- Unconditional assignment so they replace any real implementation that may have been defined.
 local HUCDM = _G.HeadsUpCDM
+local noop = function() end
+HUCDM.SetupOptions         = noop
+HUCDM.BuildDisplay         = noop
+HUCDM.TeardownDisplay      = noop
+HUCDM.RebuildDisplay       = noop
+HUCDM.UpdateDragBehavior   = noop
+HUCDM.UpdateBuffIcons      = noop
+HUCDM.UpdateResourceBar    = noop
+HUCDM.UpdateBuffBars       = noop
+HUCDM.ArrangeColumns       = noop
+HUCDM.ApplyAnchor          = noop
+HUCDM.CreateLayout         = noop
+HUCDM.CreateActionColumn   = noop
+HUCDM.CreateResourceBar    = noop
+HUCDM.CreateBuffIcons      = noop
+HUCDM.CreateBuffBars       = noop
+HUCDM.DestroyBuffBars      = noop
+HUCDM.DestroyBuffIcons     = noop
+HUCDM.DestroyResourceBar   = noop
+HUCDM.DestroyActionColumn  = noop
+HUCDM.DestroyLayout        = noop
+HUCDM.RescanActionButtons  = noop
+HUCDM.DetectCurrentBuild   = noop
+HUCDM.RegisterEvent        = HUCDM.RegisterEvent or noop
 
 describe("Config", function()
     it("should register the addon in _G", function()
@@ -158,10 +192,11 @@ describe("Core", function()
             HUCDM:OnInitialize()
         end)
 
-        it("should toggle on empty input", function()
+        it("should not toggle on empty input (opens options instead)", function()
             local initial = HUCDM.db.profile.enabled
             HUCDM:SlashCommand("")
-            assert.not_equal(initial, HUCDM.db.profile.enabled)
+            -- Empty input now opens options panel; enabled state unchanged
+            assert.equal(initial, HUCDM.db.profile.enabled)
         end)
 
         it("should toggle on 'toggle' input", function()

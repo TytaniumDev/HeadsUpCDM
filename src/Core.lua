@@ -1,20 +1,135 @@
--- HeadsUpCDM: Addon lifecycle, slash commands, event handlers
+-- HeadsUpCDM: Addon lifecycle, slash commands, event handlers, display orchestration
 
 local HUCDM = _G.HeadsUpCDM
 
+----------------------------------------------------------------------
+-- Lifecycle
+----------------------------------------------------------------------
 function HUCDM:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("HeadsUpCDMDB", self.defaults, true)
     self:RegisterChatCommand("headsupcdm", "SlashCommand")
     self:RegisterChatCommand("hucdm", "SlashCommand")
+    self:SetupOptions()
 end
 
 function HUCDM:OnEnable()
+    self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnSpecChanged")
+    self:RegisterEvent("TRAIT_CONFIG_UPDATED", "OnSpecChanged")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatDrop")
+    self:RegisterEvent("ACTIONBAR_SLOT_CHANGED", "OnActionBarChanged")
+    self:RegisterEvent("ACTIONBAR_PAGE_CHANGED", "OnActionBarChanged")
+
+    -- Delay initial build to let Blizzard finish loading action bars
+    C_Timer.After(1, function()
+        self:BuildDisplay()
+    end)
+    -- Fallback rescan
+    C_Timer.After(3, function()
+        if self.currentPreset and self.reparentedButtons
+            and #self.reparentedButtons == 0 then
+            self:RescanActionButtons()
+        end
+    end)
+
     self:Print("HeadsUpCDM loaded. Type /hucdm for options.")
 end
 
+----------------------------------------------------------------------
+-- Build / Rebuild / Teardown display
+----------------------------------------------------------------------
+function HUCDM:BuildDisplay()
+    if not self.db.profile.enabled then return end
+
+    -- Detect spec and build
+    local presetKey = self:DetectCurrentBuild()
+    if not presetKey then
+        self:Print("HeadsUpCDM: Unsupported spec")
+        self:TeardownDisplay()
+        return
+    end
+
+    local preset = self.SpellData.presets[presetKey]
+    if not preset then return end
+
+    self.currentPresetKey = presetKey
+    self.currentPreset = preset
+
+    -- Create layout frame
+    self:CreateLayout()
+
+    -- Calculate total height for resource and buff bar columns
+    local settings = self.db.profile.layout.columns.actions
+    local spellCount = #preset.spells
+    local iconSize = 48
+    local totalHeight = (spellCount * iconSize) + ((spellCount - 1) * settings.spacing)
+
+    -- Build columns
+    self:CreateActionColumn(preset)
+    self:CreateResourceBar(totalHeight)
+    self:CreateBuffIcons(preset)
+    self:CreateBuffBars(preset, totalHeight)
+
+    -- Arrange columns
+    self:ArrangeColumns()
+
+    -- Apply anchor if configured
+    self:ApplyAnchor()
+
+    -- Initial updates
+    self:UpdateResourceBar()
+    self:UpdateBuffIcons()
+    self:UpdateBuffBars()
+end
+
+function HUCDM:TeardownDisplay()
+    self:DestroyBuffBars()
+    self:DestroyBuffIcons()
+    self:DestroyResourceBar()
+    self:DestroyActionColumn()
+    self:DestroyLayout()
+    self.currentPreset = nil
+    self.currentPresetKey = nil
+end
+
+function HUCDM:RebuildDisplay()
+    self:TeardownDisplay()
+    self:BuildDisplay()
+end
+
+----------------------------------------------------------------------
+-- Event handlers
+----------------------------------------------------------------------
+function HUCDM:OnSpecChanged()
+    self:RebuildDisplay()
+end
+
+function HUCDM:OnCombatDrop()
+    -- Apply any queued reparenting changes that couldn't happen in combat
+    if self.pendingRescan then
+        self.pendingRescan = false
+        self:RescanActionButtons()
+    end
+end
+
+function HUCDM:OnActionBarChanged()
+    if InCombatLockdown() then
+        self.pendingRescan = true
+    else
+        C_Timer.After(0.5, function()
+            self:RescanActionButtons()
+        end)
+    end
+end
+
+----------------------------------------------------------------------
+-- Slash commands
+----------------------------------------------------------------------
 function HUCDM:SlashCommand(input)
     local cmd = strtrim(input or "")
-    if cmd == "" or cmd == "toggle" then
+    if cmd == "" then
+        -- Open options panel
+        LibStub("AceConfigDialog-3.0"):Open("HeadsUpCDM")
+    elseif cmd == "toggle" then
         self:Toggle()
     elseif cmd == "lock" then
         self:Lock()
@@ -22,6 +137,11 @@ function HUCDM:SlashCommand(input)
         self:Unlock()
     elseif cmd == "reset" then
         self:ResetPosition()
+        if self.layoutFrame then
+            self.layoutFrame:ClearAllPoints()
+            local pos = self.db.profile.position
+            self.layoutFrame:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
+        end
     else
         self:Print("Usage: /hucdm [toggle|lock|unlock|reset]")
     end
@@ -29,16 +149,26 @@ end
 
 function HUCDM:Toggle()
     self.db.profile.enabled = not self.db.profile.enabled
-    self:Print(self.db.profile.enabled and "Enabled" or "Disabled")
+    if self.db.profile.enabled then
+        self:BuildDisplay()
+        self:Print("Enabled")
+    else
+        self:TeardownDisplay()
+        self:Print("Disabled")
+    end
 end
 
 function HUCDM:Lock()
     self.db.profile.locked = true
+    self:UpdateDragBehavior()
+    self:UpdateBuffIcons()
     self:Print("Display locked.")
 end
 
 function HUCDM:Unlock()
     self.db.profile.locked = false
+    self:UpdateDragBehavior()
+    self:UpdateBuffIcons()
     self:Print("Display unlocked. Drag to reposition.")
 end
 
