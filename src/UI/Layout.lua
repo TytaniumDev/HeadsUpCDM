@@ -11,13 +11,46 @@ function HUCDM:CreateLayout()
     if self.layoutFrame then return self.layoutFrame end
 
     local frame = CreateFrame("Frame", "HUCDM_Layout", UIParent)
-    frame:SetSize(1, 1)  -- will resize dynamically based on content
+    frame:SetSize(200, 300)  -- initial size, will resize after columns register
     frame:SetFrameStrata("MEDIUM")
     frame:SetClampedToScreen(true)
 
     -- Restore saved position
     local pos = self.db.profile.position
     frame:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
+
+    -- Drag overlay — visible when unlocked, covers the entire layout
+    local drag = CreateFrame("Frame", "HUCDM_DragOverlay", frame)
+    drag:SetAllPoints(frame)
+    drag:SetFrameStrata("DIALOG")
+    drag:EnableMouse(true)
+    drag:SetMovable(true)
+    drag:RegisterForDrag("LeftButton")
+
+    drag:SetScript("OnDragStart", function()
+        frame:StartMoving()
+    end)
+    drag:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        local point, _, _, x, y = frame:GetPoint(1)
+        self.db.profile.position = { point = point, x = x, y = y }
+    end)
+
+    -- Semi-transparent background when unlocked
+    local bg = drag:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.3)
+    drag.bg = bg
+
+    -- "Drag to move" label
+    local label = drag:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("TOP", drag, "TOP", 0, -4)
+    label:SetText("HeadsUpCDM - Drag to move")
+    label:SetTextColor(1, 0.84, 0, 0.8)
+    drag.label = label
+
+    drag:Hide()  -- hidden by default (locked)
+    self.dragOverlay = drag
 
     self.layoutFrame = frame
     self.columns = {}
@@ -27,7 +60,7 @@ function HUCDM:CreateLayout()
 end
 
 ----------------------------------------------------------------------
--- Drag behavior: group drag by default, shift+drag for individual columns
+-- Drag behavior: toggle drag overlay based on lock state
 ----------------------------------------------------------------------
 function HUCDM:UpdateDragBehavior()
     local frame = self.layoutFrame
@@ -35,33 +68,21 @@ function HUCDM:UpdateDragBehavior()
 
     local locked = self.db.profile.locked
     frame:SetMovable(not locked)
-    frame:EnableMouse(not locked)
 
-    if not locked then
-        frame:RegisterForDrag("LeftButton")
-        frame:SetScript("OnDragStart", function(f)
-            if not IsShiftKeyDown() then
-                f:StartMoving()
-            end
-        end)
-        frame:SetScript("OnDragStop", function(f)
-            f:StopMovingOrSizing()
-            -- Save position
-            local point, _, _, x, y = f:GetPoint(1)
-            self.db.profile.position = { point = point, x = x, y = y }
-        end)
-    else
-        frame:RegisterForDrag()
-        frame:SetScript("OnDragStart", nil)
-        frame:SetScript("OnDragStop", nil)
+    if self.dragOverlay then
+        if locked then
+            self.dragOverlay:Hide()
+        else
+            self.dragOverlay:Show()
+        end
     end
 end
 
 ----------------------------------------------------------------------
 -- Register a column (called by each column module during setup)
 ----------------------------------------------------------------------
-function HUCDM:RegisterColumn(key, frame)
-    self.columns[key] = frame
+function HUCDM:RegisterColumn(key, colFrame)
+    self.columns[key] = colFrame
     self:ArrangeColumns()
 end
 
@@ -74,6 +95,8 @@ function HUCDM:ArrangeColumns()
 
     local order = self.db.profile.layout.columnOrder
     local prevFrame = nil
+    local totalWidth = 0
+    local maxHeight = 0
 
     for i = 1, #order do
         local key = order[i]
@@ -84,8 +107,13 @@ function HUCDM:ArrangeColumns()
                 col:SetPoint("TOPLEFT", layout, "TOPLEFT", 0, 0)
             else
                 col:SetPoint("TOPLEFT", prevFrame, "TOPRIGHT", COLUMN_GAP, 0)
+                totalWidth = totalWidth + COLUMN_GAP
             end
             prevFrame = col
+
+            totalWidth = totalWidth + col:GetWidth()
+            local h = col:GetHeight()
+            if h > maxHeight then maxHeight = h end
 
             -- Apply per-column settings
             local settings = self.db.profile.layout.columns[key]
@@ -94,6 +122,11 @@ function HUCDM:ArrangeColumns()
                 col:SetAlpha(settings.alpha)
             end
         end
+    end
+
+    -- Resize layout frame to fit all columns
+    if totalWidth > 0 and maxHeight > 0 then
+        layout:SetSize(totalWidth, maxHeight)
     end
 end
 
@@ -118,6 +151,9 @@ end
 -- Teardown: hide layout, release columns
 ----------------------------------------------------------------------
 function HUCDM:DestroyLayout()
+    if self.dragOverlay then
+        self.dragOverlay:Hide()
+    end
     if self.layoutFrame then
         self.layoutFrame:Hide()
     end
