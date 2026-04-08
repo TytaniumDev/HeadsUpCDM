@@ -97,6 +97,15 @@ function HUCDM:UpdateBuffIcons()
                 aura = C_UnitAuras.GetPlayerAuraBySpellID(buffInfo.id)
             end)
 
+            -- Deferred texture fix: retry if icon was a placeholder
+            if not buffIcon.textureLoaded then
+                local tex = C_Spell.GetSpellTexture(buffInfo.id)
+                if tex then
+                    buffIcon.icon:SetTexture(tex)
+                    buffIcon.textureLoaded = true
+                end
+            end
+
             if aura then
                 -- Buff is active
                 buffIcon:Show()

@@ -1,52 +1,46 @@
--- HeadsUpCDM: Scan Blizzard action bars, find buttons by spellID, reparent into vertical column
+-- HeadsUpCDM: Scan Blizzard CDM Essential Cooldown frames, reparent into vertical column
+-- Uses the Cooldown Manager's EssentialCooldownViewer instead of action bar buttons,
+-- so the player's action bars remain untouched.
 
 local HUCDM = _G.HeadsUpCDM
 
-local BAR_PREFIXES = {
-    { prefix = "ActionButton",              count = 12 },
-    { prefix = "MultiBarBottomLeftButton",  count = 12 },
-    { prefix = "MultiBarBottomRightButton", count = 12 },
-    { prefix = "MultiBarRightButton",       count = 12 },
-    { prefix = "MultiBarLeftButton",        count = 12 },
-    { prefix = "MultiBar5Button",           count = 12 },
-    { prefix = "MultiBar6Button",           count = 12 },
-    { prefix = "MultiBar7Button",           count = 12 },
-}
+----------------------------------------------------------------------
+-- Resolve the spellID for a CDM Essential frame via C_CooldownViewer
+----------------------------------------------------------------------
+local function GetCDMFrameSpellID(frame)
+    if not frame or not frame.cooldownID then return nil end
+    if not C_CooldownViewer or not C_CooldownViewer.GetCooldownViewerCooldownInfo then return nil end
 
-----------------------------------------------------------------------
--- Resolve the spellID for a Blizzard action button
-----------------------------------------------------------------------
-local function GetButtonSpellID(btn)
-    local slot = btn.action or (btn.GetAttribute and btn:GetAttribute("action"))
-    if not slot then return nil end
-    local ok, actionType, id, subType = pcall(GetActionInfo, slot)
-    if not ok then return nil end
-    if actionType == "spell" then
-        return id
-    elseif actionType == "macro" then
-        if subType == "spell" then
-            return id
-        elseif GetMacroSpell then
-            local ok2, macroSpell = pcall(GetMacroSpell, id)
-            if ok2 then return macroSpell end
-        end
-    end
-    return nil
+    local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
+    if not ok or not info then return nil end
+
+    -- overrideSpellID is the current display spell (may differ from base due to talents)
+    return info.overrideSpellID or info.spellID
 end
 
 ----------------------------------------------------------------------
--- Find a Blizzard button with a given spellID
+-- Get all active CDM Essential frames from the viewer's item pool
 ----------------------------------------------------------------------
-local function FindButtonForSpell(spellID)
-    for _, barInfo in ipairs(BAR_PREFIXES) do
-        for i = 1, barInfo.count do
-            local btn = _G[barInfo.prefix .. i]
-            if btn then
-                local btnSpell = GetButtonSpellID(btn)
-                if btnSpell == spellID then
-                    return btn
-                end
-            end
+local function GetEssentialFrames()
+    local viewer = _G["EssentialCooldownViewer"]
+    if not viewer or not viewer.itemFramePool then return {} end
+
+    local frames = {}
+    for frame in viewer.itemFramePool:EnumerateActive() do
+        frames[#frames + 1] = frame
+    end
+    return frames
+end
+
+----------------------------------------------------------------------
+-- Find a CDM Essential frame matching a given spellID
+----------------------------------------------------------------------
+local function FindCDMFrameForSpell(spellID)
+    local frames = GetEssentialFrames()
+    for _, frame in ipairs(frames) do
+        local frameSpell = GetCDMFrameSpellID(frame)
+        if frameSpell == spellID then
+            return frame
         end
     end
     return nil
@@ -63,7 +57,6 @@ function HUCDM:CreateActionColumn(preset)
     local iconSize = 48
     local spacing = settings.spacing
 
-    -- Container frame for the action column
     local column = CreateFrame("Frame", "HUCDM_ActionColumn", layout)
     local spellCount = #preset.spells
     local totalHeight = (spellCount * iconSize) + ((spellCount - 1) * spacing)
@@ -75,28 +68,23 @@ function HUCDM:CreateActionColumn(preset)
     self.savedButtonState = {}
     self.actionRows = {}
 
-    -- Scan and reparent
-    self:ScanAndReparentButtons(preset, iconSize, spacing)
+    self:ScanAndReparentCDMFrames(preset, iconSize, spacing)
 
-    -- Register column with layout system
     self:RegisterColumn("actions", column)
 
     return column
 end
 
 ----------------------------------------------------------------------
--- Scan action bars and reparent matching buttons
+-- Scan CDM Essential frames and reparent matching ones
 ----------------------------------------------------------------------
-function HUCDM:ScanAndReparentButtons(preset, iconSize, spacing)
+function HUCDM:ScanAndReparentCDMFrames(preset, iconSize, spacing)
     local column = self.actionColumn
     if not column then return end
 
     local foundCount = 0
 
     for i, spellInfo in ipairs(preset.spells) do
-        local btn = FindButtonForSpell(spellInfo.id)
-
-        -- Create a row frame to hold the action button + paired buff icons
         local row = CreateFrame("Frame", "HUCDM_ActionRow" .. i, column)
         row:SetSize(iconSize, iconSize)
         local yOffset = -((i - 1) * (iconSize + spacing))
@@ -105,24 +93,37 @@ function HUCDM:ScanAndReparentButtons(preset, iconSize, spacing)
 
         self.actionRows[i] = row
 
-        if btn then
-            self:ReparentButton(btn, row, iconSize)
+        local cdmFrame = FindCDMFrameForSpell(spellInfo.id)
+        if cdmFrame then
+            self:ReparentButton(cdmFrame, row, iconSize)
             foundCount = foundCount + 1
         else
-            self:Print("Warning: " .. spellInfo.name .. " not found on action bars")
+            -- Try with base spell (talent transforms may change the ID)
+            local baseID = C_Spell.GetBaseSpell and C_Spell.GetBaseSpell(spellInfo.id)
+            if baseID and baseID ~= spellInfo.id then
+                cdmFrame = FindCDMFrameForSpell(baseID)
+                if cdmFrame then
+                    self:ReparentButton(cdmFrame, row, iconSize)
+                    foundCount = foundCount + 1
+                end
+            end
+            if not cdmFrame then
+                self:Print("Warning: " .. spellInfo.name
+                    .. " not found in Essential Cooldowns. Add it via Edit Mode.")
+            end
         end
     end
 
     if foundCount == 0 then
-        self:Print("No matching spells found on action bars. Add your rotation spells to any bar.")
+        self:Print("No matching Essential Cooldowns found. "
+            .. "Open Edit Mode and add your rotation spells to Essential Cooldowns.")
     end
 end
 
 ----------------------------------------------------------------------
--- Reparent a single Blizzard button into a row
+-- Reparent a single CDM frame into a row
 ----------------------------------------------------------------------
 function HUCDM:ReparentButton(btn, row, iconSize)
-    -- Save original state for restore
     local numPoints = btn:GetNumPoints()
     local origPoints = {}
     for i = 1, numPoints do
@@ -146,7 +147,7 @@ function HUCDM:ReparentButton(btn, row, iconSize)
 end
 
 ----------------------------------------------------------------------
--- Restore all reparented buttons to original positions
+-- Restore all reparented frames to original positions
 ----------------------------------------------------------------------
 function HUCDM:RestoreButtons()
     for _, btn in ipairs(self.reparentedButtons or {}) do
@@ -177,11 +178,11 @@ function HUCDM:DestroyActionColumn()
 end
 
 ----------------------------------------------------------------------
--- Re-scan (called on ACTIONBAR_SLOT_CHANGED etc.)
+-- Re-scan (called when CDM frames change)
 ----------------------------------------------------------------------
 function HUCDM:RescanActionButtons()
     if not self.currentPreset or not self.actionColumn then return end
     self:RestoreButtons()
     local settings = self.db.profile.layout.columns.actions
-    self:ScanAndReparentButtons(self.currentPreset, 48, settings.spacing)
+    self:ScanAndReparentCDMFrames(self.currentPreset, 48, settings.spacing)
 end

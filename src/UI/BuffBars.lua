@@ -93,6 +93,14 @@ end
 function HUCDM:UpdateBuffBars()
     for _, buffBar in ipairs(self.buffBarFrames or {}) do
         local buffInfo = buffBar.buffInfo
+        -- Deferred texture fix for bar icons
+        if not buffBar.textureLoaded and buffBar.icon then
+            local tex = C_Spell.GetSpellTexture(buffInfo.id)
+            if tex then
+                buffBar.icon:SetTexture(tex)
+                buffBar.textureLoaded = true
+            end
+        end
         pcall(function()
             local aura = C_UnitAuras.GetPlayerAuraBySpellID(buffInfo.id)
             if aura and aura.duration and aura.duration > 0 then
