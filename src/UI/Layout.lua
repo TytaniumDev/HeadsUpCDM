@@ -153,9 +153,11 @@ end
 function HUCDM:DestroyLayout()
     if self.dragOverlay then
         self.dragOverlay:Hide()
+        self.dragOverlay = nil
     end
     if self.layoutFrame then
         self.layoutFrame:Hide()
+        self.layoutFrame = nil
     end
     self.columns = {}
 end
