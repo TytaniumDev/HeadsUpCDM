@@ -18,6 +18,8 @@ externals:
     url: https://repos.curseforge.com/wow/ace3/trunk/AceGUI-3.0
   libs/CallbackHandler-1.0:
     url: https://repos.curseforge.com/wow/ace3/trunk/CallbackHandler-1.0
+  libs/LibCustomGlow-1.0:
+    url: https://repos.curseforge.com/wow/libcustomglow/trunk
 
 ignore:
   - tests
