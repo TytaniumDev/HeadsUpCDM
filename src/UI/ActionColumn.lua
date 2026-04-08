@@ -326,6 +326,9 @@ function HUCDM:SetupRotationGlow()
     if self.glowEventsInstalled then return end
     self.glowEventsInstalled = true
 
+    -- Expose for live settings changes
+    self.UpdateRotationHighlights = UpdateRotationHighlights
+
     -- WoW 12.0: EventRegistry callback for rotation helper changes
     if EventRegistry and EventRegistry.RegisterCallback then
         EventRegistry:RegisterCallback(

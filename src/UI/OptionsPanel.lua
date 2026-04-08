@@ -254,6 +254,9 @@ function HUCDM:SetupOptions()
                         get = function() return self.db.profile.visuals.glowStyle end,
                         set = function(_, val)
                             self.db.profile.visuals.glowStyle = val
+                            if self.UpdateRotationHighlights then
+                                self:UpdateRotationHighlights()
+                            end
                         end,
                     },
                     buffCountdown = {
