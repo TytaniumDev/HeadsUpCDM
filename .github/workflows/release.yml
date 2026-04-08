@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  CI-Lint:
+    uses: TytaniumDev/.github/.github/workflows/lint.yml@main
+  CI-Build:
+    uses: TytaniumDev/.github/.github/workflows/build.yml@main
+  CI-Test:
+    uses: TytaniumDev/.github/.github/workflows/test.yml@main
+
+  deploy:
+    needs: [CI-Lint, CI-Build, CI-Test]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh workflow run deploy.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

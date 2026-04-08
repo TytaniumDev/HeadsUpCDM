@@ -1,0 +1,20 @@
+name: Auto Merge Label
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  add-label:
+    if: >-
+      github.event.review.state == 'approved' &&
+      (
+        github.event.review.user.login == 'TytaniumDev' ||
+        (github.event.review.user.login == 'claude[bot]' && github.event.pull_request.user.login == 'google-labs-jules[bot]')
+      )
+    uses: TytaniumDev/.github/.github/workflows/automerge-label.yml@main

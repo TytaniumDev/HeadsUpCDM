@@ -1,0 +1,60 @@
+name: Deploy Addon
+
+on:
+  push:
+    tags: [v*]
+  workflow_dispatch:
+
+concurrency:
+  group: addon-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Auto-create version tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          DATE_PREFIX="v$(date -u +'%Y.%-m.%-d')"
+          PATCH=0
+          while git rev-parse "${DATE_PREFIX}.${PATCH}" >/dev/null 2>&1; do
+            PATCH=$((PATCH + 1))
+          done
+          TAG="${DATE_PREFIX}.${PATCH}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Created and pushed tag: $TAG"
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Load Doppler secrets
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: |
+          DELIM=$(openssl rand -hex 16)
+          SECRETS=$(doppler secrets download --no-file --format json)
+          KEYS='["CURSEFORGE_API_KEY","WAGO_API_KEY"]'
+          echo "$SECRETS" | jq -r --argjson keys "$KEYS" '
+            to_entries[] | select(.key | IN($keys[])) | .value
+          ' | while IFS= read -r val; do
+            [ -n "$val" ] && echo "::add-mask::$val"
+          done
+          echo "$SECRETS" | jq -r --argjson keys "$KEYS" --arg d "$DELIM" '
+            to_entries[] | select(.key | IN($keys[])) | "\(.key)<<\($d)\n\(.value)\n\($d)"
+          ' >> "$GITHUB_ENV"
+
+      - name: Package and release addon
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ env.CURSEFORGE_API_KEY }}
+          WAGO_API_TOKEN: ${{ env.WAGO_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,60 @@
+# Packager output
+.release/
+
+# External libraries (fetched by BigWigsMods/packager at release time)
+libs/*/
+
+# Compiled Lua sources
+luac.out
+
+# luarocks build files
+*.src.rock
+*.zip
+*.tar.gz
+
+# Object files
+*.o
+*.os
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.def
+*.exp
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Superpowers planning documents
+docs/superpowers/
+
+# Superpowers brainstorm sessions
+.superpowers/
+
+# Gemini agent config
+.agent/
+
+# Git worktrees
+.worktrees/
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+.DS_Store

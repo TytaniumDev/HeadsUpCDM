@@ -1,0 +1,22 @@
+package-as: HeadsUpCDM
+
+externals:
+  libs/LibStub:
+    url: https://repos.curseforge.com/wow/libstub/trunk
+    tag: 1.0
+  libs/AceAddon-3.0:
+    url: https://repos.curseforge.com/wow/ace3/trunk/AceAddon-3.0
+  libs/AceConsole-3.0:
+    url: https://repos.curseforge.com/wow/ace3/trunk/AceConsole-3.0
+  libs/AceEvent-3.0:
+    url: https://repos.curseforge.com/wow/ace3/trunk/AceEvent-3.0
+  libs/AceDB-3.0:
+    url: https://repos.curseforge.com/wow/ace3/trunk/AceDB-3.0
+  libs/CallbackHandler-1.0:
+    url: https://repos.curseforge.com/wow/ace3/trunk/CallbackHandler-1.0
+
+ignore:
+  - tests
+  - .luacheckrc
+  - "*.md"
+  - .github

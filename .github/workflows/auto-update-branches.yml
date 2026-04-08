@@ -1,0 +1,45 @@
+name: Auto Update Branches
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  update-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update automerge PR branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              base: 'main',
+              sort: 'created',
+              direction: 'asc',
+            });
+
+            const automerge = pulls.filter(pr =>
+              pr.labels.some(l => l.name === 'automerge')
+            );
+
+            for (const pr of automerge) {
+              try {
+                await github.rest.pulls.updateBranch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                });
+                core.info(`Updated PR #${pr.number}: ${pr.title}`);
+              } catch (err) {
+                core.warning(`Failed to update PR #${pr.number}: ${err.message}`);
+              }
+            }
+
+            core.info(`Updated ${automerge.length} PR(s) with automerge label`);

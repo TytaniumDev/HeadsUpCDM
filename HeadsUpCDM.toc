@@ -1,0 +1,21 @@
+## Interface: 120001
+## Title: HeadsUpCDM
+## Notes: Cooldown manager and rotation helper displayed at eye level so you never look away from the action
+## Author: Tyler Holland
+## Version: @project-version@
+## SavedVariables: HeadsUpCDMDB
+## IconTexture: Interface/Icons/Spell_Holy_BorrowedTime
+
+# Embedded Libraries
+# Lua files listed explicitly to avoid upstream Ace3 XML backslash path issues on macOS.
+# If upgrading Ace3, re-enumerate from the corresponding .xml files.
+libs/LibStub/LibStub.lua
+libs/CallbackHandler-1.0/CallbackHandler-1.0.lua
+libs/AceAddon-3.0/AceAddon-3.0.lua
+libs/AceConsole-3.0/AceConsole-3.0.lua
+libs/AceEvent-3.0/AceEvent-3.0.lua
+libs/AceDB-3.0/AceDB-3.0.lua
+
+# Core
+src/Config.lua
+src/Core.lua
