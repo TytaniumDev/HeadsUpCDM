@@ -242,99 +242,67 @@ function HUCDM:RescanActionButtons()
 end
 
 ----------------------------------------------------------------------
--- Rotation assist glow: use WoW 12.0 C_AssistedCombat API
--- Fires when the rotation helper suggestion changes
+-- Rotation assist glow: use WoW 12.0 C_AssistedCombat API + LibCustomGlow
 ----------------------------------------------------------------------
-local GLOW_BORDER = 4
-local GLOW_BLOOM = 10
-local glowFrames = setmetatable({}, { __mode = "k" })
+local LCG = LibStub("LibCustomGlow-1.0")
+local GLOW_KEY = "HUCDM_Rotation"
 local glowedFrames = {}
 
-local function GetOrCreateGlow(parent)
-    if glowFrames[parent] then return glowFrames[parent] end
-
-    local glow = CreateFrame("Frame", nil, parent)
-    glow:SetFrameLevel(parent:GetFrameLevel() + 5)
-    glow:SetPoint("TOPLEFT", parent, "TOPLEFT", -GLOW_BLOOM, GLOW_BLOOM)
-    glow:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", GLOW_BLOOM, -GLOW_BLOOM)
-
-    -- Outer bloom/glow (soft, wide)
-    local bloom = glow:CreateTexture(nil, "BACKGROUND")
-    bloom:SetAllPoints()
-    bloom:SetColorTexture(1, 0.84, 0, 0.35)
-    bloom:SetBlendMode("ADD")
-
-    -- Inner solid border (bright, sharp)
-    local inner = CreateFrame("Frame", nil, glow)
-    inner:SetPoint("TOPLEFT", glow, "TOPLEFT",
-        GLOW_BLOOM - GLOW_BORDER, -(GLOW_BLOOM - GLOW_BORDER))
-    inner:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT",
-        -(GLOW_BLOOM - GLOW_BORDER), GLOW_BLOOM - GLOW_BORDER)
-
-    local dirs = {
-        { "TOPLEFT", "TOPRIGHT", 0, 0, 0, -GLOW_BORDER },
-        { "BOTTOMLEFT", "BOTTOMRIGHT", 0, GLOW_BORDER, 0, 0 },
-        { "TOPLEFT", "BOTTOMLEFT", 0, 0, GLOW_BORDER, 0 },
-        { "TOPRIGHT", "BOTTOMRIGHT", -GLOW_BORDER, 0, 0, 0 },
-    }
-    for i = 1, #dirs do
-        local d = dirs[i]
-        local tex = inner:CreateTexture(nil, "OVERLAY")
-        tex:SetPoint(d[1], inner, d[1], d[3], d[4])
-        tex:SetPoint(d[2], inner, d[2], d[5], d[6])
-        tex:SetColorTexture(1, 0.84, 0, 1)
+local function StartGlow(frame, styleIdx, r, g, b)
+    local color = { r, g, b, 1 }
+    if styleIdx == 1 then
+        LCG.ProcGlow_Start(frame, { color = color, key = GLOW_KEY, startAnim = true })
+    elseif styleIdx == 2 then
+        LCG.ButtonGlow_Start(frame, color)
+    elseif styleIdx == 3 then
+        LCG.PixelGlow_Start(frame, color, nil, nil, nil, nil, nil, nil, nil, GLOW_KEY)
+    elseif styleIdx == 4 then
+        LCG.AutoCastGlow_Start(frame, color, nil, nil, nil, nil, nil, GLOW_KEY)
     end
+end
 
-    -- Pulse animation on the bloom
-    local ag = bloom:CreateAnimationGroup()
-    ag:SetLooping("BOUNCE")
-    local pulse = ag:CreateAnimation("Alpha")
-    pulse:SetFromAlpha(0.35)
-    pulse:SetToAlpha(0.65)
-    pulse:SetDuration(0.5)
-    pulse:SetSmoothing("IN_OUT")
-    glow.pulseAnim = ag
-
-    glow:Hide()
-    glowFrames[parent] = glow
-    return glow
+local function StopGlow(frame, styleIdx)
+    if styleIdx == 1 then
+        LCG.ProcGlow_Stop(frame, GLOW_KEY)
+    elseif styleIdx == 2 then
+        LCG.ButtonGlow_Stop(frame)
+    elseif styleIdx == 3 then
+        LCG.PixelGlow_Stop(frame, GLOW_KEY)
+    elseif styleIdx == 4 then
+        LCG.AutoCastGlow_Stop(frame, GLOW_KEY)
+    end
 end
 
 local function UpdateRotationHighlights()
     local self = _G.HeadsUpCDM
     if not self.cdmSpellSlots then return end
 
+    local glowStyle = self.db and self.db.profile.visuals.glowStyle or 1
+    local gc = self.db and self.db.profile.visuals.glowColor or { 1, 0.84, 0 }
+
     -- Get the current suggested spell from the rotation helper
     local suggestedSpell = C_AssistedCombat and C_AssistedCombat.GetNextCastSpell
         and C_AssistedCombat.GetNextCastSpell()
 
     -- Clear all current glows
-    for frame in pairs(glowedFrames) do
-        local glow = glowFrames[frame]
-        if glow then
-            if glow.pulseAnim then glow.pulseAnim:Stop() end
-            glow:Hide()
-        end
+    for frame, oldStyle in pairs(glowedFrames) do
+        StopGlow(frame, oldStyle)
     end
     wipe(glowedFrames)
 
     if not suggestedSpell then return end
 
-    -- Find CDM frame(s) matching the suggested spell
     local viewer = _G["EssentialCooldownViewer"]
     if not viewer or not viewer.itemFramePool then return end
 
-    -- Also resolve the base spell of the suggestion for matching
     local suggestedBase = C_Spell.GetBaseSpell and C_Spell.GetBaseSpell(suggestedSpell)
 
     for frame in viewer.itemFramePool:EnumerateActive() do
         local fd = frameData[frame]
         if fd and fd.spellID then
-            -- Match against: exact spellID, base spell, or CDM's full info
             local matched = (fd.spellID == suggestedSpell)
                 or (suggestedBase and fd.spellID == suggestedBase)
 
-            -- Also check CDM info for both spellID and overrideSpellID
             if not matched and frame.cooldownID then
                 local ok, info = pcall(
                     C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
@@ -347,10 +315,8 @@ local function UpdateRotationHighlights()
             end
 
             if matched then
-                local glow = GetOrCreateGlow(frame)
-                glow:Show()
-                if glow.pulseAnim then glow.pulseAnim:Play() end
-                glowedFrames[frame] = true
+                StartGlow(frame, glowStyle, gc[1], gc[2], gc[3])
+                glowedFrames[frame] = glowStyle
             end
         end
     end

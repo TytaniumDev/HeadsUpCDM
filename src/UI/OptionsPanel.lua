@@ -240,10 +240,26 @@ function HUCDM:SetupOptions()
                             self.db.profile.visuals.coloredBorders = val
                         end,
                     },
+                    glowStyle = {
+                        name = "Rotation Glow Style",
+                        desc = "Choose the glow effect for the rotation helper highlight",
+                        type = "select",
+                        order = 3,
+                        values = {
+                            [1] = "Proc Glow (animated pulse)",
+                            [2] = "Button Glow (classic WoW)",
+                            [3] = "Pixel Glow (marching ants)",
+                            [4] = "Autocast Shine (sparkle dots)",
+                        },
+                        get = function() return self.db.profile.visuals.glowStyle end,
+                        set = function(_, val)
+                            self.db.profile.visuals.glowStyle = val
+                        end,
+                    },
                     buffCountdown = {
                         name = "Buff Icon Countdown Text",
                         type = "toggle",
-                        order = 3,
+                        order = 10,
                         get = function() return self.db.profile.visuals.buffCountdownText end,
                         set = function(_, val)
                             self.db.profile.visuals.buffCountdownText = val
