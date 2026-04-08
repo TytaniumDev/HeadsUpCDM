@@ -60,6 +60,43 @@ This addon targets **WoW 12.0 (Midnight)** (`## Interface: 120001`). Use the mod
 
 When adding new WoW API calls, check [Warcraft Wiki API changes](https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes) to confirm the function hasn't been removed or moved to a `C_` namespace in 12.0.
 
+## WoW 12.0 Taint — CRITICAL
+
+All WoW API return values are tainted "secret numbers" in 12.0. Addon code **cannot compare, branch on, or forward these values** to addon-created frames. The only safe patterns are:
+
+- Pass tainted values to Blizzard widgets via `pcall` (e.g., `StatusBar:SetValue()`)
+- Reposition Blizzard's own CDM frames (never create custom CooldownFrame widgets)
+- Use `IsSpellKnown()` for talent detection (NOT `C_Spell.IsSpellUsable()`)
+- Use `C_AssistedCombat.GetNextCastSpell()` + `EventRegistry` for rotation glow (NOT `SPELL_ACTIVATION_OVERLAY_GLOW_SHOW`)
+- Use `C_Timer.After(0, ...)` for deferred init (NOT arbitrary delays)
+
+**Reference addons** in `~/Documents`: EllesmereUI-v6.3.7 and Ayije_CDM-3.79 — always consult these before implementing CDM features.
+
+**Spell IDs from Wowhead are frequently wrong.** Always verify in-game with `/hucdm debug` before committing.
+
+## Architecture
+
+### Core approach
+The addon repositions Blizzard CDM frames (EssentialCooldownViewer, BuffIconCooldownViewer, BuffBarCooldownViewer) — it does NOT create custom cooldown or buff frames. Pattern: hook viewer Layout/RefreshLayout, hook per-frame SetPoint to enforce positions, use weak-keyed tables for frame data, throttled reanchor via OnUpdate.
+
+### Global namespace pattern
+The addon registers itself as `HeadsUpCDM` via AceAddon in `src/Config.lua`, stored in `_G.HeadsUpCDM`. Every other source file accesses it via `local HUCDM = _G.HeadsUpCDM` and attaches methods/data to it. There is no module system — all files share the single `HUCDM` table.
+
+### File load order (defined by `HeadsUpCDM.toc`)
+1. **Config.lua** — Creates the addon object, defines constants and saved variable defaults
+2. **Core.lua** — Addon lifecycle (`OnInitialize`/`OnEnable`), slash commands, display orchestration
+3. **SpellData.lua** — Spec presets: spell lists, buff pairings per spec/build
+4. **SpecDetection.lua** — Detect spec + hero build, return preset key
+5. **UI/Layout.lua** — Master frame, column arrangement, drag overlay, anchoring
+6. **UI/ActionColumn.lua** — Hook CDM Essential frames, reposition into vertical layout, rotation glow
+7. **UI/ResourceBar.lua** — Focus StatusBar with threshold colors
+8. **UI/BuffIcons.lua** — Hook CDM buff icon frames, position next to paired actions
+9. **UI/BuffBars.lua** — Hook CDM buff bar frames into vertical column
+10. **UI/OptionsPanel.lua** — AceConfig options panel
+
+### Test structure
+Tests stub WoW APIs and `LibStub` at the top of each file, then `dofile()` the source files in load order. The test stubs pattern is consistent across all test files — copy from an existing test when adding new ones. UI module functions are stubbed as no-ops in test context.
+
 ## Key Conventions
 
 - Lua 5.1 target (`std = "lua51"` in `.luacheckrc`), 120 char line limit
