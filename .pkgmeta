@@ -19,7 +19,7 @@ externals:
   libs/CallbackHandler-1.0:
     url: https://repos.curseforge.com/wow/ace3/trunk/CallbackHandler-1.0
   libs/LibCustomGlow-1.0:
-    url: https://github.com/Stanzilla/LibCustomGlow
+    url: https://github.com/Stanzilla/LibCustomGlow.git
 
 ignore:
   - tests
