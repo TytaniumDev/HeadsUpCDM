@@ -1,6 +1,8 @@
 -- HeadsUpCDM: Vertical buff duration bars using custom StatusBars.
 -- Blizzard CDM buff bar frames are hidden off-screen; their Bar values
 -- are mirrored to addon-created StatusBars so we control size/orientation.
+-- (Repositioning Blizzard BuffBarCooldownViewer items directly doesn't work
+-- because the viewer's layout system overrides SetSize on every frame.)
 
 local HUCDM = _G.HeadsUpCDM
 
@@ -18,6 +20,16 @@ local function GetBarFrameSpellID(frame)
 end
 
 ----------------------------------------------------------------------
+-- File-level sync helper (avoids closure creation per pcall call)
+----------------------------------------------------------------------
+local function SyncSlotValues(slot)
+    local mn, mx = slot.blizzBar:GetMinMaxValues()
+    local val = slot.blizzBar:GetValue()
+    slot.customBar:SetMinMaxValues(mn, mx)
+    slot.customBar:SetValue(val)
+end
+
+----------------------------------------------------------------------
 -- Build the buff bars column with custom StatusBars per preset slot
 ----------------------------------------------------------------------
 function HUCDM:CreateBuffBars(preset, totalHeight)
@@ -30,7 +42,7 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
     local buffBarConfig = preset.buffBarDefaults or {}
 
     -- Container column
-    local column = CreateFrame("Frame", "HUCDM_BuffBarsColumn", layout)
+    local column = CreateFrame("Frame", nil, layout)
     local columnWidth = (#buffBarConfig * barWidth) + ((#buffBarConfig - 1) * barGap)
     if columnWidth <= 0 then columnWidth = 1 end
     column:SetSize(columnWidth, totalHeight)
@@ -45,7 +57,7 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
 
         -- Custom vertical StatusBar — two-point anchored so it auto-resizes
         -- with the column. Spans from column top to iconSize above column bottom.
-        local bar = CreateFrame("StatusBar", "HUCDM_BuffBar_" .. buffInfo.id, column)
+        local bar = CreateFrame("StatusBar", nil, column)
         bar:SetPoint("TOPLEFT", column, "TOPLEFT", xOffset, 0)
         bar:SetPoint("BOTTOMRIGHT", column, "BOTTOMLEFT", xOffset + barWidth, iconSize)
         bar:SetOrientation("VERTICAL")
@@ -61,7 +73,7 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
         bg:SetColorTexture(0, 0, 0, 0.6)
 
         -- Own icon texture at the bottom of the column
-        local icon = column:CreateTexture("HUCDM_BuffBarIcon_" .. buffInfo.id, "ARTWORK")
+        local icon = column:CreateTexture(nil, "ARTWORK")
         icon:SetSize(barWidth, barWidth)
         icon:SetPoint("BOTTOMLEFT", column, "BOTTOMLEFT", xOffset, 0)
         icon:Hide()
@@ -80,15 +92,16 @@ function HUCDM:CreateBuffBars(preset, totalHeight)
         }
     end
 
-    -- OnUpdate to mirror Blizzard bar values to our custom bars
+    -- Reuse sync frame if it already exists (survives spec-change teardown)
+    local syncFrame = self.buffBarSyncFrame or CreateFrame("Frame", nil)
     local syncElapsed = 0
-    local syncFrame = CreateFrame("Frame", "HUCDM_BuffBarSync")
     syncFrame:SetScript("OnUpdate", function(_, elapsed)
         syncElapsed = syncElapsed + elapsed
         if syncElapsed < 0.05 then return end
         syncElapsed = 0
         self:SyncBuffBarValues()
     end)
+    syncFrame:Show()
     self.buffBarSyncFrame = syncFrame
 
     -- Hook the buff bar viewer
@@ -106,14 +119,21 @@ function HUCDM:SyncBuffBarValues()
     if not self.buffBarSpellSlots then return end
     for _, slot in pairs(self.buffBarSpellSlots) do
         if slot.active and slot.blizzBar and slot.customBar then
-            pcall(function()
-                local mn, mx = slot.blizzBar:GetMinMaxValues()
-                local val = slot.blizzBar:GetValue()
-                slot.customBar:SetMinMaxValues(mn, mx)
-                slot.customBar:SetValue(val)
-            end)
+            pcall(SyncSlotValues, slot)
         end
     end
+end
+
+----------------------------------------------------------------------
+-- Sync all side-column heights with the action column
+----------------------------------------------------------------------
+function HUCDM:SyncColumnHeights()
+    if not self.actionColumn then return end
+    local h = self.actionColumn:GetHeight()
+    if h <= 0 then return end
+    if self.buffBarColumn then self.buffBarColumn:SetHeight(h) end
+    if self.resourceColumn then self.resourceColumn:SetHeight(h) end
+    if self.resourceBar then self.resourceBar:SetHeight(h) end
 end
 
 ----------------------------------------------------------------------
@@ -156,8 +176,8 @@ function HUCDM:SetupBuffBarHooks()
         end)
     end
 
-    -- Throttle frame
-    local reanchorFrame = CreateFrame("Frame", "HUCDM_BuffBarReanchor")
+    -- Reuse throttle frame if it already exists
+    local reanchorFrame = self.buffBarReanchorFrame or CreateFrame("Frame", nil)
     reanchorFrame:Hide()
     self.buffBarReanchorDirty = false
     reanchorFrame:SetScript("OnUpdate", function(f)
@@ -182,15 +202,7 @@ function HUCDM:ReanchorBuffBars()
     if not viewer or not viewer.itemFramePool then return end
     if not self.buffBarSpellSlots or not self.buffBarColumn then return end
 
-    -- Sync column height with the action column (it resizes dynamically)
-    if self.actionColumn then
-        local h = self.actionColumn:GetHeight()
-        if h > 0 then
-            self.buffBarColumn:SetHeight(h)
-            if self.resourceColumn then self.resourceColumn:SetHeight(h) end
-            if self.resourceBar then self.resourceBar:SetHeight(h) end
-        end
-    end
+    self:SyncColumnHeights()
 
     -- Reset active state
     for _, slot in pairs(self.buffBarSpellSlots) do
@@ -226,12 +238,10 @@ function HUCDM:ReanchorBuffBars()
                 end
 
                 -- Set icon texture from the spell ID
-                pcall(function()
-                    local info = C_Spell.GetSpellInfo(spellID)
-                    if info and info.iconID then
-                        slot.customIcon:SetTexture(info.iconID)
-                    end
-                end)
+                local info = C_Spell.GetSpellInfo(spellID)
+                if info and info.iconID then
+                    slot.customIcon:SetTexture(info.iconID)
+                end
 
                 -- Show our custom bar and icon
                 slot.customBar:Show()
@@ -266,7 +276,6 @@ function HUCDM:DestroyBuffBars()
     end
     if self.buffBarSyncFrame then
         self.buffBarSyncFrame:Hide()
-        self.buffBarSyncFrame = nil
     end
     if self.buffBarReanchorFrame then
         self.buffBarReanchorFrame:Hide()
