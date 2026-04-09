@@ -18,6 +18,7 @@ libs/AceConsole-3.0/AceConsole-3.0.lua
 libs/AceEvent-3.0/AceEvent-3.0.lua
 libs/AceDB-3.0/AceDB-3.0.lua
 libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
+libs/WagoAnalytics/Shim.lua
 # AceGUI-3.0 (widgets loaded directly instead of via AceGUI-3.0.xml)
 libs/AceGUI-3.0/AceGUI-3.0.lua
 libs/AceGUI-3.0/widgets/AceGUIContainer-BlizOptionsGroup.lua
@@ -47,7 +48,6 @@ libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua
 libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua
 libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua
 libs/AceConfig-3.0/AceConfig-3.0.lua
-libs/WagoAnalytics/Shim.lua
 
 # Core
 src/Config.lua
