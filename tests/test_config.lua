@@ -185,6 +185,10 @@ describe("Core", function()
             HUCDM:OnInitialize()
         end)
 
+        after_each(function()
+            _G.CooldownViewerSettings = nil
+        end)
+
         it("should show the frame when hidden", function()
             local shown = false
             _G.CooldownViewerSettings = {
@@ -194,7 +198,6 @@ describe("Core", function()
             }
             HUCDM:OpenBlizzardCDM()
             assert.is_true(shown)
-            _G.CooldownViewerSettings = nil
         end)
 
         it("should hide the frame when shown", function()
@@ -206,11 +209,9 @@ describe("Core", function()
             }
             HUCDM:OpenBlizzardCDM()
             assert.is_true(hidden)
-            _G.CooldownViewerSettings = nil
         end)
 
         it("should not error when CooldownViewerSettings is nil", function()
-            _G.CooldownViewerSettings = nil
             assert.has_no.errors(function() HUCDM:OpenBlizzardCDM() end)
         end)
     end)
