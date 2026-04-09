@@ -111,16 +111,18 @@ function HUCDM:ArrangeColumns()
             end
             prevFrame = col
 
-            totalWidth = totalWidth + col:GetWidth()
-            local h = col:GetHeight()
-            if h > maxHeight then maxHeight = h end
-
             -- Apply per-column settings
             local settings = self.db.profile.layout.columns[key]
+            local scale = (settings and settings.scale) or 1
             if settings then
-                col:SetScale(settings.scale)
+                col:SetScale(scale)
                 col:SetAlpha(settings.alpha)
             end
+
+            -- Use scaled dimensions for layout sizing
+            totalWidth = totalWidth + (col:GetWidth() * scale)
+            local h = col:GetHeight() * scale
+            if h > maxHeight then maxHeight = h end
         end
     end
 
@@ -128,23 +130,6 @@ function HUCDM:ArrangeColumns()
     if totalWidth > 0 and maxHeight > 0 then
         layout:SetSize(totalWidth, maxHeight)
     end
-end
-
-----------------------------------------------------------------------
--- Apply anchor to a target frame
-----------------------------------------------------------------------
-function HUCDM:ApplyAnchor()
-    local frame = self.layoutFrame
-    if not frame then return end
-
-    local anchor = self.db.profile.anchor
-    if anchor.target == "NONE" then return end
-
-    local target = _G[anchor.target]
-    if not target then return end
-
-    frame:ClearAllPoints()
-    frame:SetPoint("CENTER", target, "CENTER", anchor.offsetX, anchor.offsetY)
 end
 
 ----------------------------------------------------------------------
