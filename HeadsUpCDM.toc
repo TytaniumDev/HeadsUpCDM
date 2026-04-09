@@ -5,6 +5,8 @@
 ## Version: @project-version@
 ## SavedVariables: HeadsUpCDMDB
 ## IconTexture: Interface/Icons/Spell_Holy_BorrowedTime
+## X-Wago-ID: 56ndY0G9
+## OptionalDependencies: WagoAnalytics
 
 # Embedded Libraries
 # Lua files listed explicitly to avoid upstream Ace3 XML backslash path issues on macOS.
@@ -16,6 +18,7 @@ libs/AceConsole-3.0/AceConsole-3.0.lua
 libs/AceEvent-3.0/AceEvent-3.0.lua
 libs/AceDB-3.0/AceDB-3.0.lua
 libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
+libs/WagoAnalytics/Shim.lua
 # AceGUI-3.0 (widgets loaded directly instead of via AceGUI-3.0.xml)
 libs/AceGUI-3.0/AceGUI-3.0.lua
 libs/AceGUI-3.0/widgets/AceGUIContainer-BlizOptionsGroup.lua
