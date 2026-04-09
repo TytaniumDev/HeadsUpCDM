@@ -124,6 +124,7 @@ describe("Config", function()
     it("should have empty spell overrides by default", function()
         assert.same({}, HUCDM.defaults.profile.spellOverrides)
     end)
+
 end)
 
 describe("Core", function()

@@ -12,6 +12,7 @@ local REANCHOR_THROTTLE = 0.15
 local reanchorDirty = false
 local lastReanchorTime = 0
 
+
 ----------------------------------------------------------------------
 -- Resolve the spellID for a CDM frame
 ----------------------------------------------------------------------
@@ -53,6 +54,45 @@ function HUCDM:CreateActionColumn(preset)
 
         self.actionRows[i] = row
         self.cdmSpellSlots[spellInfo.id] = { row = row, index = i }
+    end
+
+    -- Create icon frames for spells with source = "actionbar".
+    -- Blizzard ActionButtons are fully protected in 12.0 — we create our own
+    -- non-secure icon frames and track spell state via UNIT_AURA / UnitPower.
+    self.actionBarButtons = {}
+    local scale = (settings and settings.scale) or 1
+    local alpha = (settings and settings.alpha) or 1
+
+    for i, spellInfo in ipairs(preset.spells) do
+        if spellInfo.source == "actionbar" then
+            local row = self.actionRows[i]
+
+            -- Create icon frame at the row position (anonymous to avoid
+            -- global namespace pollution on rebuild)
+            local icon = CreateFrame("Frame", nil, row)
+            icon:SetAllPoints(row)
+
+            -- Spell icon texture (pcall: GetSpellInfo returns tainted values)
+            local tex = icon:CreateTexture(nil, "ARTWORK")
+            tex:SetAllPoints()
+            local ok, spellInfo2 = pcall(C_Spell.GetSpellInfo, spellInfo.id)
+            if ok and spellInfo2 and spellInfo2.iconID then
+                pcall(tex.SetTexture, tex, spellInfo2.iconID)
+            end
+            icon.texture = tex
+
+            icon:SetScale(scale)
+            icon:SetAlpha(alpha)
+            icon:Show()
+
+            row.hasActionBarButton = true
+
+            self.actionBarButtons[#self.actionBarButtons + 1] = {
+                icon = icon,
+                row = row,
+                spellID = spellInfo.id,
+            }
+        end
     end
 
     -- Sync the CDM viewer to our column and install hooks
@@ -164,9 +204,9 @@ function HUCDM:ReanchorCDMFrames()
     local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
 
-    -- Reset flags before scanning
+    -- Reset flags before scanning (preserve rows with action bar buttons as having content)
     for _, row in ipairs(self.actionRows or {}) do
-        row.hasCDMFrame = false
+        row.hasCDMFrame = row.hasActionBarButton or false
     end
 
     for frame in viewer.itemFramePool:EnumerateActive() do
@@ -212,25 +252,38 @@ function HUCDM:ReanchorCDMFrames()
         end
     end
 
+    -- Update filler icon scale/alpha (rows already marked via hasActionBarButton)
+    for _, entry in ipairs(self.actionBarButtons or {}) do
+        if entry.icon then
+            entry.icon:SetScale(scale)
+            entry.icon:SetAlpha(alpha)
+        end
+    end
+
     -- Collapse rows with no CDM frame and re-layout
     self:RelayoutRows()
 
-    -- Sync resource bar and buff bar heights to match action column
-    if self.actionColumn and self.resourceBar then
+    -- Sync resource bar and buff bar heights to match action column.
+    -- Deferred: this runs from Blizzard hook chains where taint blocks SetHeight.
+    -- Flag-based throttle: only one pending sync per frame to avoid closure pressure.
+    if self.actionColumn and not self.heightSyncPending then
+        self.heightSyncPending = true
         local h = self.actionColumn:GetHeight()
-        self.resourceBar:SetHeight(h)
-        if self.resourceColumn then self.resourceColumn:SetHeight(h) end
-    end
-    if self.actionColumn and self.buffBarColumn then
-        local h = self.actionColumn:GetHeight()
-        self.buffBarColumn:SetHeight(h)
-        for _, bar in ipairs(self.buffBarFrames or {}) do
-            bar:SetHeight(h)
-            if bar.bar then
-                local barIconSize = bar:GetWidth()
-                bar.bar:SetHeight(h - barIconSize - 2)
+        C_Timer.After(0, function()
+            self.heightSyncPending = false
+            if self.resourceBar then self.resourceBar:SetHeight(h) end
+            if self.resourceColumn then self.resourceColumn:SetHeight(h) end
+            if self.buffBarColumn then
+                self.buffBarColumn:SetHeight(h)
+                for _, bar in ipairs(self.buffBarFrames or {}) do
+                    bar:SetHeight(h)
+                    if bar.bar then
+                        local barIconSize = bar:GetWidth()
+                        bar.bar:SetHeight(h - barIconSize - 2)
+                    end
+                end
             end
-        end
+        end)
     end
 end
 
@@ -247,7 +300,7 @@ function HUCDM:RelayoutRows()
     local visibleCount = 0
 
     for _, row in ipairs(self.actionRows) do
-        if row.hasCDMFrame then
+        if row.hasCDMFrame or row.hasActionBarButton then
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", self.actionColumn, "TOPLEFT", 0, -yPos)
             row:Show()
@@ -288,6 +341,13 @@ end
 ----------------------------------------------------------------------
 function HUCDM:DestroyActionColumn()
     self:RestoreButtons()
+
+    -- Clean up filler icon frames
+    for _, entry in ipairs(self.actionBarButtons or {}) do
+        if entry.icon then entry.icon:Hide() end
+    end
+    self.actionBarButtons = {}
+
     if self.reanchorFrame then
         self.reanchorFrame:Hide()
     end

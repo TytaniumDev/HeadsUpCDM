@@ -86,6 +86,25 @@ describe("SpellData", function()
             assert.equal("Trueshot", trueshot.name)
             assert.is_true(#trueshot.pairedBuffs >= 2)
         end)
+
+        it("should mark Arcane Shot as actionbar source", function()
+            local arcaneShot = preset.spells[3]
+            assert.equal("Arcane Shot", arcaneShot.name)
+            assert.equal("actionbar", arcaneShot.source)
+        end)
+    end)
+
+    describe("MM Sentinel preset", function()
+        local preset
+        setup(function()
+            preset = HUCDM.SpellData.presets["MM_SENTINEL"]
+        end)
+
+        it("should mark Arcane Shot as actionbar source", function()
+            local arcaneShot = preset.spells[3]
+            assert.equal("Arcane Shot", arcaneShot.name)
+            assert.equal("actionbar", arcaneShot.source)
+        end)
     end)
 
     describe("buff bar defaults", function()
