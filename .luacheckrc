@@ -73,6 +73,7 @@ read_globals = {
     "EventRegistry",
     C_AssistedCombat = { other_fields = true },
     "AssistedCombatManager",
+    "CooldownViewerSettings",
 
     -- Libraries
     "LibStub",

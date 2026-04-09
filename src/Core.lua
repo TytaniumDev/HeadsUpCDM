@@ -9,6 +9,7 @@ function HUCDM:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("HeadsUpCDMDB", self.defaults, true)
     self:RegisterChatCommand("headsupcdm", "SlashCommand")
     self:RegisterChatCommand("hucdm", "SlashCommand")
+    self:RegisterChatCommand("cdm", "OpenBlizzardCDM")
     self:SetupOptions()
 end
 
@@ -113,6 +114,22 @@ function HUCDM:OnActionBarChanged()
             self:RescanActionButtons()
             self.actionBarUpdateTimer = nil
         end)
+    end
+end
+
+----------------------------------------------------------------------
+-- Blizzard CDM settings shortcut
+----------------------------------------------------------------------
+function HUCDM:OpenBlizzardCDM()
+    local frame = CooldownViewerSettings
+    if not frame then
+        self:Print("Blizzard Cooldown Manager settings not available.")
+        return
+    end
+    if frame:IsShown() then
+        frame:Hide()
+    else
+        frame:Show()
     end
 end
 

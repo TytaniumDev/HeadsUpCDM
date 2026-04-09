@@ -49,6 +49,13 @@ function HUCDM:SetupOptions()
                             end
                         end,
                     },
+                    openCDM = {
+                        name = "Open Blizzard CDM Settings",
+                        desc = "Open the built-in Cooldown Manager settings panel (or type /cdm)",
+                        type = "execute",
+                        order = 4,
+                        func = function() self:OpenBlizzardCDM() end,
+                    },
                 },
             },
 
