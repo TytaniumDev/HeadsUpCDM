@@ -20,6 +20,9 @@ externals:
     url: https://repos.curseforge.com/wow/ace3/trunk/CallbackHandler-1.0
   libs/LibCustomGlow-1.0:
     url: https://github.com/Stanzilla/LibCustomGlow.git
+  libs/WagoAnalytics:
+    url: https://github.com/wagoio/WagoAnalyticsShim.git
+    branch: main
 
 ignore:
   - tests
