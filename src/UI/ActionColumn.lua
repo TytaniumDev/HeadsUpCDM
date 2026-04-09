@@ -15,11 +15,11 @@ local lastReanchorTime = 0
 ----------------------------------------------------------------------
 -- Resolve the spellID for a CDM frame
 ----------------------------------------------------------------------
-local function GetCDMFrameSpellID(frame)
-    if not frame or not frame.cooldownID then return nil end
+local function GetCDMFrameSpellIDs(frame)
+    if not frame or not frame.cooldownID then return nil, nil end
     local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
-    if not ok or not info then return nil end
-    return info.overrideSpellID or info.spellID
+    if not ok or not info then return nil, nil end
+    return info.overrideSpellID, info.spellID
 end
 
 ----------------------------------------------------------------------
@@ -170,9 +170,11 @@ function HUCDM:ReanchorCDMFrames()
     end
 
     for frame in viewer.itemFramePool:EnumerateActive() do
-        local spellID = GetCDMFrameSpellID(frame)
+        local overrideID, baseID = GetCDMFrameSpellIDs(frame)
+        local spellID = overrideID or baseID
         if spellID then
-            local slot = self.cdmSpellSlots[spellID]
+            local slot = (overrideID and self.cdmSpellSlots[overrideID])
+                or (baseID and self.cdmSpellSlots[baseID])
             if slot then
                 -- Position frame at our row anchor and apply scale
                 frame:ClearAllPoints()
