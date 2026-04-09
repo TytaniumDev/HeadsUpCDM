@@ -45,7 +45,6 @@ HUCDM.UpdateBuffIcons      = noop
 HUCDM.UpdateResourceBar    = noop
 HUCDM.UpdateBuffBars       = noop
 HUCDM.ArrangeColumns       = noop
-HUCDM.ApplyAnchor          = noop
 HUCDM.CreateLayout         = noop
 HUCDM.CreateActionColumn   = noop
 HUCDM.SetupRotationGlow    = noop
@@ -119,14 +118,6 @@ describe("Config", function()
         assert.is_false(vis.desaturateOnCooldown)
         assert.is_false(vis.coloredBorders)
         assert.is_false(vis.buffCountdownText)
-    end)
-
-    it("should default anchor to none", function()
-        local anchor = HUCDM.defaults.profile.anchor
-        assert.is_not_nil(anchor)
-        assert.equal("NONE", anchor.target)
-        assert.equal(0, anchor.offsetX)
-        assert.equal(0, anchor.offsetY)
     end)
 
     it("should have empty spell overrides by default", function()

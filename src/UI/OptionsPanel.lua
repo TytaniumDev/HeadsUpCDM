@@ -64,12 +64,17 @@ function HUCDM:SetupOptions()
                         order = 1,
                     },
                     actionsScale = {
-                        name = "Action Bar Scale",
+                        name = "Scale",
+                        desc = "Scale the entire HUD (all columns)",
                         type = "range", min = 0.5, max = 2.0, step = 0.05,
                         order = 10,
                         get = function() return self.db.profile.layout.columns.actions.scale end,
                         set = function(_, val)
                             self.db.profile.layout.columns.actions.scale = val
+                            self.db.profile.layout.columns.resource.scale = val
+                            self.db.profile.layout.columns.buffBars.scale = val
+                            if self.ReanchorCDMFrames then self:ReanchorCDMFrames() end
+                            if self.ReanchorBuffIcons then self:ReanchorBuffIcons() end
                             self:ArrangeColumns()
                         end,
                     },
@@ -80,6 +85,8 @@ function HUCDM:SetupOptions()
                         get = function() return self.db.profile.layout.columns.actions.alpha end,
                         set = function(_, val)
                             self.db.profile.layout.columns.actions.alpha = val
+                            if self.ReanchorCDMFrames then self:ReanchorCDMFrames() end
+                            if self.ReanchorBuffIcons then self:ReanchorBuffIcons() end
                             self:ArrangeColumns()
                         end,
                     },
@@ -93,16 +100,6 @@ function HUCDM:SetupOptions()
                             self:RebuildDisplay()
                         end,
                     },
-                    resourceScale = {
-                        name = "Resource Bar Scale",
-                        type = "range", min = 0.5, max = 2.0, step = 0.05,
-                        order = 20,
-                        get = function() return self.db.profile.layout.columns.resource.scale end,
-                        set = function(_, val)
-                            self.db.profile.layout.columns.resource.scale = val
-                            self:ArrangeColumns()
-                        end,
-                    },
                     resourceAlpha = {
                         name = "Resource Bar Opacity",
                         type = "range", min = 0.0, max = 1.0, step = 0.05,
@@ -110,16 +107,6 @@ function HUCDM:SetupOptions()
                         get = function() return self.db.profile.layout.columns.resource.alpha end,
                         set = function(_, val)
                             self.db.profile.layout.columns.resource.alpha = val
-                            self:ArrangeColumns()
-                        end,
-                    },
-                    buffBarsScale = {
-                        name = "Buff Bars Scale",
-                        type = "range", min = 0.5, max = 2.0, step = 0.05,
-                        order = 30,
-                        get = function() return self.db.profile.layout.columns.buffBars.scale end,
-                        set = function(_, val)
-                            self.db.profile.layout.columns.buffBars.scale = val
                             self:ArrangeColumns()
                         end,
                     },
@@ -131,42 +118,6 @@ function HUCDM:SetupOptions()
                         set = function(_, val)
                             self.db.profile.layout.columns.buffBars.alpha = val
                             self:ArrangeColumns()
-                        end,
-                    },
-                    anchorTarget = {
-                        name = "Anchor To",
-                        desc = "Anchor the display to a UI frame",
-                        type = "select",
-                        order = 40,
-                        values = {
-                            NONE = "None (Free Position)",
-                            PlayerFrame = "Player Frame",
-                            TargetFrame = "Target Frame",
-                        },
-                        get = function() return self.db.profile.anchor.target end,
-                        set = function(_, val)
-                            self.db.profile.anchor.target = val
-                            self:ApplyAnchor()
-                        end,
-                    },
-                    anchorX = {
-                        name = "Anchor Offset X",
-                        type = "range", min = -500, max = 500, step = 1,
-                        order = 41,
-                        get = function() return self.db.profile.anchor.offsetX end,
-                        set = function(_, val)
-                            self.db.profile.anchor.offsetX = val
-                            self:ApplyAnchor()
-                        end,
-                    },
-                    anchorY = {
-                        name = "Anchor Offset Y",
-                        type = "range", min = -500, max = 500, step = 1,
-                        order = 42,
-                        get = function() return self.db.profile.anchor.offsetY end,
-                        set = function(_, val)
-                            self.db.profile.anchor.offsetY = val
-                            self:ApplyAnchor()
                         end,
                     },
                 },

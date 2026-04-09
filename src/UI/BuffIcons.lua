@@ -112,6 +112,9 @@ function HUCDM:ReanchorBuffIcons()
     if not self.buffSpellToRow then return end
 
     local iconSize = 48
+    local settings = self.db.profile.layout.columns.actions
+    local scale = (settings and settings.scale) or 1
+    local alpha = (settings and settings.alpha) or 1
 
     for frame in viewer.itemFramePool:EnumerateActive() do
         local spellID = GetBuffFrameSpellID(frame)
@@ -121,6 +124,8 @@ function HUCDM:ReanchorBuffIcons()
                 frame:ClearAllPoints()
                 frame:SetPoint("TOPLEFT", slot.row, "TOPLEFT", slot.xOffset, 0)
                 frame:SetSize(iconSize, iconSize)
+                frame:SetScale(scale)
+                frame:SetAlpha(alpha)
                 frame:Show()
 
                 -- Store anchor and install SetPoint hook

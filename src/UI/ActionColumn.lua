@@ -160,6 +160,9 @@ function HUCDM:ReanchorCDMFrames()
     if not self.cdmSpellSlots then return end
 
     local iconSize = 48
+    local settings = self.db.profile.layout.columns.actions
+    local scale = (settings and settings.scale) or 1
+    local alpha = (settings and settings.alpha) or 1
 
     -- Reset flags before scanning
     for _, row in ipairs(self.actionRows or {}) do
@@ -171,10 +174,12 @@ function HUCDM:ReanchorCDMFrames()
         if spellID then
             local slot = self.cdmSpellSlots[spellID]
             if slot then
-                -- Position frame at our row anchor
+                -- Position frame at our row anchor and apply scale
                 frame:ClearAllPoints()
                 frame:SetPoint("TOPLEFT", slot.row, "TOPLEFT", 0, 0)
                 frame:SetSize(iconSize, iconSize)
+                frame:SetScale(scale)
+                frame:SetAlpha(alpha)
 
                 -- Store the canonical anchor so SetPoint hook can enforce it
                 local fd = frameData[frame]

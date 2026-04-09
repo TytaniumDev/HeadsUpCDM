@@ -66,9 +66,6 @@ function HUCDM:BuildDisplay()
     -- Arrange columns
     self:ArrangeColumns()
 
-    -- Apply anchor if configured
-    self:ApplyAnchor()
-
     -- Initial updates
     self:UpdateResourceBar()
     self:UpdateBuffIcons()

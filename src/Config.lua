@@ -48,12 +48,6 @@ HUCDM.defaults = {
             buffCountdownFontSize = 12,
         },
 
-        anchor = {
-            target = "NONE",
-            offsetX = 0,
-            offsetY = 0,
-        },
-
         spellOverrides = {},          -- per-spec overrides for spell list/pairings
     },
 }
