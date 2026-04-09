@@ -9,11 +9,11 @@ local buffFrameData = setmetatable({}, { __mode = "k" })
 ----------------------------------------------------------------------
 -- Resolve the spellID for a CDM buff frame
 ----------------------------------------------------------------------
-local function GetBuffFrameSpellID(frame)
-    if not frame or not frame.cooldownID then return nil end
+local function GetBuffFrameSpellIDs(frame)
+    if not frame or not frame.cooldownID then return nil, nil end
     local ok, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, frame.cooldownID)
-    if not ok or not info then return nil end
-    return info.overrideSpellID or info.spellID
+    if not ok or not info then return nil, nil end
+    return info.overrideSpellID, info.spellID
 end
 
 ----------------------------------------------------------------------
@@ -117,9 +117,11 @@ function HUCDM:ReanchorBuffIcons()
     local alpha = (settings and settings.alpha) or 1
 
     for frame in viewer.itemFramePool:EnumerateActive() do
-        local spellID = GetBuffFrameSpellID(frame)
+        local overrideID, baseID = GetBuffFrameSpellIDs(frame)
+        local spellID = overrideID or baseID
         if spellID then
             local slot = self.buffSpellToRow[spellID]
+                or (baseID and self.buffSpellToRow[baseID])
             if slot then
                 frame:ClearAllPoints()
                 frame:SetPoint("TOPLEFT", slot.row, "TOPLEFT", slot.xOffset, 0)
