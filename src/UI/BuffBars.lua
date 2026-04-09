@@ -131,9 +131,14 @@ function HUCDM:SyncColumnHeights()
     if not self.actionColumn then return end
     local h = self.actionColumn:GetHeight()
     if h <= 0 then return end
-    if self.buffBarColumn then self.buffBarColumn:SetHeight(h) end
-    if self.resourceColumn then self.resourceColumn:SetHeight(h) end
-    if self.resourceBar then self.resourceBar:SetHeight(h) end
+    -- Defer to next frame: this can be called from Blizzard's RefreshLayout
+    -- hook chain, where the execution path is tainted and SetHeight on our
+    -- own frames gets blocked by the 12.0 taint system.
+    C_Timer.After(0, function()
+        if self.buffBarColumn then self.buffBarColumn:SetHeight(h) end
+        if self.resourceColumn then self.resourceColumn:SetHeight(h) end
+        if self.resourceBar then self.resourceBar:SetHeight(h) end
+    end)
 end
 
 ----------------------------------------------------------------------
