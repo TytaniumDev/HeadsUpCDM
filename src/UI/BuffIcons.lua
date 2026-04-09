@@ -113,8 +113,8 @@ function HUCDM:ReanchorBuffIcons()
 
     local iconSize = 48
     local settings = self.db.profile.layout.columns.actions
-    local scale = settings.scale or 1
-    local alpha = settings.alpha or 1
+    local scale = (settings and settings.scale) or 1
+    local alpha = (settings and settings.alpha) or 1
 
     for frame in viewer.itemFramePool:EnumerateActive() do
         local spellID = GetBuffFrameSpellID(frame)

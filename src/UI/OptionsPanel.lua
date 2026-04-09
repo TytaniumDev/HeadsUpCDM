@@ -73,9 +73,9 @@ function HUCDM:SetupOptions()
                             self.db.profile.layout.columns.actions.scale = val
                             self.db.profile.layout.columns.resource.scale = val
                             self.db.profile.layout.columns.buffBars.scale = val
-                            self:ArrangeColumns()
                             if self.ReanchorCDMFrames then self:ReanchorCDMFrames() end
                             if self.ReanchorBuffIcons then self:ReanchorBuffIcons() end
+                            self:ArrangeColumns()
                         end,
                     },
                     actionsAlpha = {
@@ -85,9 +85,9 @@ function HUCDM:SetupOptions()
                         get = function() return self.db.profile.layout.columns.actions.alpha end,
                         set = function(_, val)
                             self.db.profile.layout.columns.actions.alpha = val
-                            self:ArrangeColumns()
                             if self.ReanchorCDMFrames then self:ReanchorCDMFrames() end
                             if self.ReanchorBuffIcons then self:ReanchorBuffIcons() end
+                            self:ArrangeColumns()
                         end,
                     },
                     actionsSpacing = {

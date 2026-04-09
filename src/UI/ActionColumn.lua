@@ -161,8 +161,8 @@ function HUCDM:ReanchorCDMFrames()
 
     local iconSize = 48
     local settings = self.db.profile.layout.columns.actions
-    local scale = settings.scale or 1
-    local alpha = settings.alpha or 1
+    local scale = (settings and settings.scale) or 1
+    local alpha = (settings and settings.alpha) or 1
 
     -- Reset flags before scanning
     for _, row in ipairs(self.actionRows or {}) do
