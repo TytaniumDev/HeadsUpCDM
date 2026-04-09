@@ -107,28 +107,6 @@ function HUCDM:SetupOptions()
                             self:RebuildDisplay()
                         end,
                     },
-                    actionBarSelect = {
-                        name = "Filler Spell Bar",
-                        desc = "Which action bar holds your filler spells (Arcane Shot, etc). "
-                            .. "Place spells on this bar in the same order as your preset, "
-                            .. "then hide the bar in Edit Mode.",
-                        type = "select",
-                        order = 15,
-                        values = {
-                            MultiBarBottomLeft  = "Bar 2",
-                            MultiBarBottomRight = "Bar 3",
-                            MultiBarRight       = "Bar 4",
-                            MultiBarLeft        = "Bar 5",
-                            MultiBar5           = "Bar 6",
-                            MultiBar6           = "Bar 7",
-                            MultiBar7           = "Bar 8",
-                        },
-                        get = function() return self.db.profile.actionBar.barName end,
-                        set = function(_, val)
-                            self.db.profile.actionBar.barName = val
-                            self:RebuildDisplay()
-                        end,
-                    },
                     resourceAlpha = {
                         name = "Resource Bar Opacity",
                         type = "range", min = 0.0, max = 1.0, step = 0.05,

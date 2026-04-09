@@ -67,17 +67,17 @@ function HUCDM:CreateActionColumn(preset)
         if spellInfo.source == "actionbar" then
             local row = self.actionRows[i]
 
-            -- Create icon frame at the row position
-            local icon = CreateFrame("Frame", "HUCDM_FillerIcon" .. i, row)
+            -- Create icon frame at the row position (anonymous to avoid
+            -- global namespace pollution on rebuild)
+            local icon = CreateFrame("Frame", nil, row)
             icon:SetAllPoints(row)
 
-            -- Spell icon texture
+            -- Spell icon texture (pcall: GetSpellInfo returns tainted values)
             local tex = icon:CreateTexture(nil, "ARTWORK")
             tex:SetAllPoints()
-            local spellInfo2 = C_Spell and C_Spell.GetSpellInfo
-                and C_Spell.GetSpellInfo(spellInfo.id)
-            if spellInfo2 and spellInfo2.iconID then
-                tex:SetTexture(spellInfo2.iconID)
+            local ok, spellInfo2 = pcall(C_Spell.GetSpellInfo, spellInfo.id)
+            if ok and spellInfo2 and spellInfo2.iconID then
+                pcall(tex.SetTexture, tex, spellInfo2.iconID)
             end
             icon.texture = tex
 
@@ -252,13 +252,12 @@ function HUCDM:ReanchorCDMFrames()
         end
     end
 
-    -- Update filler icon frames and mark rows as having content
+    -- Update filler icon scale/alpha (rows already marked via hasActionBarButton)
     for _, entry in ipairs(self.actionBarButtons or {}) do
         if entry.icon then
             entry.icon:SetScale(scale)
             entry.icon:SetAlpha(alpha)
         end
-        entry.row.hasCDMFrame = true
     end
 
     -- Collapse rows with no CDM frame and re-layout
@@ -266,9 +265,12 @@ function HUCDM:ReanchorCDMFrames()
 
     -- Sync resource bar and buff bar heights to match action column.
     -- Deferred: this runs from Blizzard hook chains where taint blocks SetHeight.
-    if self.actionColumn then
+    -- Flag-based throttle: only one pending sync per frame to avoid closure pressure.
+    if self.actionColumn and not self.heightSyncPending then
+        self.heightSyncPending = true
         local h = self.actionColumn:GetHeight()
         C_Timer.After(0, function()
+            self.heightSyncPending = false
             if self.resourceBar then self.resourceBar:SetHeight(h) end
             if self.resourceColumn then self.resourceColumn:SetHeight(h) end
             if self.buffBarColumn then

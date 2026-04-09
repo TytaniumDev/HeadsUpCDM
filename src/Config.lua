@@ -33,10 +33,6 @@ HUCDM.defaults = {
             showText = true,
         },
 
-        actionBar = {
-            barName = "MultiBar7",  -- bar 8 in Edit Mode
-        },
-
         visuals = {
             desaturateOnCooldown = false,
             coloredBorders = false,
