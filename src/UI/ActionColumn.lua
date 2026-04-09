@@ -173,7 +173,7 @@ function HUCDM:ReanchorCDMFrames()
         local overrideID, baseID = GetCDMFrameSpellIDs(frame)
         local spellID = overrideID or baseID
         if spellID then
-            local slot = self.cdmSpellSlots[spellID]
+            local slot = (overrideID and self.cdmSpellSlots[overrideID])
                 or (baseID and self.cdmSpellSlots[baseID])
             if slot then
                 -- Position frame at our row anchor and apply scale

@@ -120,7 +120,7 @@ function HUCDM:ReanchorBuffIcons()
         local overrideID, baseID = GetBuffFrameSpellIDs(frame)
         local spellID = overrideID or baseID
         if spellID then
-            local slot = self.buffSpellToRow[spellID]
+            local slot = (overrideID and self.buffSpellToRow[overrideID])
                 or (baseID and self.buffSpellToRow[baseID])
             if slot then
                 frame:ClearAllPoints()
