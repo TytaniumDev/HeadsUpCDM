@@ -124,6 +124,12 @@ describe("Config", function()
     it("should have empty spell overrides by default", function()
         assert.same({}, HUCDM.defaults.profile.spellOverrides)
     end)
+
+    it("should have actionBar defaults", function()
+        local ab = HUCDM.defaults.profile.actionBar
+        assert.is_not_nil(ab)
+        assert.equal("MultiBar7", ab.barName)
+    end)
 end)
 
 describe("Core", function()

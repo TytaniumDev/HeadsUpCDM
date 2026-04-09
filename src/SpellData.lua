@@ -109,14 +109,15 @@ HUCDM.SpellData.presets = {
                 id = 19434, name = "Aimed Shot",
                 pairedBuffs = {
                     { id = 389019, name = "Bulletstorm" },
-                    { id = 260402, name = "Double Tap" },
+                    { id = 473370, name = "Double Tap" },
                 },
             },
             { id = 257044, name = "Rapid Fire", pairedBuffs = {} },
             {
                 id = 185358, name = "Arcane Shot",
+                source = "actionbar",
                 pairedBuffs = {
-                    { id = 260242, name = "Precise Shots" },
+                    { id = 260240, name = "Precise Shots" },
                 },
             },
             { id = 466930, name = "Black Arrow", pairedBuffs = {} },
@@ -133,7 +134,7 @@ HUCDM.SpellData.presets = {
         buffBarDefaults = {
             { id = 288613, name = "Trueshot", color = { 0.20, 0.60, 0.86 } },
             { id = 389019, name = "Bulletstorm", color = { 0.91, 0.30, 0.24 } },
-            { id = 260242, name = "Precise Shots", color = { 0.61, 0.35, 0.71 } },
+            { id = 260240, name = "Precise Shots", color = { 0.61, 0.35, 0.71 } },
         },
         resourceThresholds = {
             red = 35,       -- Aimed Shot cost
@@ -148,21 +149,22 @@ HUCDM.SpellData.presets = {
                 id = 19434, name = "Aimed Shot",
                 pairedBuffs = {
                     { id = 389019, name = "Bulletstorm" },
-                    { id = 260402, name = "Double Tap" },
+                    { id = 473370, name = "Double Tap" },
                 },
             },
             { id = 257044, name = "Rapid Fire", pairedBuffs = {} },
             {
                 id = 185358, name = "Arcane Shot",
+                source = "actionbar",
                 pairedBuffs = {
-                    { id = 260242, name = "Precise Shots" },
+                    { id = 260240, name = "Precise Shots" },
                 },
             },
             {
                 id = 288613, name = "Trueshot",
                 pairedBuffs = {
                     { id = 288613, name = "Trueshot", isBuff = true },
-                    { id = 429444, name = "Moonlight Chakram" },
+                    { id = 1264902, name = "Moonlight Chakram" },
                 },
             },
             { id = 260243, name = "Volley", pairedBuffs = {} },
@@ -171,7 +173,7 @@ HUCDM.SpellData.presets = {
         buffBarDefaults = {
             { id = 288613, name = "Trueshot", color = { 0.20, 0.60, 0.86 } },
             { id = 389019, name = "Bulletstorm", color = { 0.91, 0.30, 0.24 } },
-            { id = 260242, name = "Precise Shots", color = { 0.61, 0.35, 0.71 } },
+            { id = 260240, name = "Precise Shots", color = { 0.61, 0.35, 0.71 } },
         },
         resourceThresholds = {
             red = 35,
