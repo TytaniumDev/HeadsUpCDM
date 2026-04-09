@@ -27,6 +27,7 @@ _G.strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 _G.C_Timer = { After = function() end, NewTicker = function() return { Cancel = function() end } end }
 _G.InCombatLockdown = function() return false end
 _G.IsShiftKeyDown = function() return false end
+_G.CooldownViewerSettings = nil -- stub; tests override per-case
 
 -- Load source files in order
 dofile("src/Config.lua")
@@ -176,6 +177,41 @@ describe("Core", function()
             assert.equal("CENTER", HUCDM.db.profile.position.point)
             assert.equal(0, HUCDM.db.profile.position.x)
             assert.equal(200, HUCDM.db.profile.position.y)
+        end)
+    end)
+
+    describe("OpenBlizzardCDM", function()
+        before_each(function()
+            HUCDM:OnInitialize()
+        end)
+
+        it("should show the frame when hidden", function()
+            local shown = false
+            _G.CooldownViewerSettings = {
+                IsShown = function() return false end,
+                Show = function() shown = true end,
+                Hide = function() end,
+            }
+            HUCDM:OpenBlizzardCDM()
+            assert.is_true(shown)
+            _G.CooldownViewerSettings = nil
+        end)
+
+        it("should hide the frame when shown", function()
+            local hidden = false
+            _G.CooldownViewerSettings = {
+                IsShown = function() return true end,
+                Show = function() end,
+                Hide = function() hidden = true end,
+            }
+            HUCDM:OpenBlizzardCDM()
+            assert.is_true(hidden)
+            _G.CooldownViewerSettings = nil
+        end)
+
+        it("should not error when CooldownViewerSettings is nil", function()
+            _G.CooldownViewerSettings = nil
+            assert.has_no.errors(function() HUCDM:OpenBlizzardCDM() end)
         end)
     end)
 
