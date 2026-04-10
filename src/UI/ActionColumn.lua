@@ -407,9 +407,13 @@ end
 function HUCDM:DestroyActionColumn()
     self:RestoreButtons()
 
-    -- Clean up filler icon frames
+    -- Clean up actionbar entries: restore SecureHandler buttons, hide fallback icons
     for _, entry in ipairs(self.actionBarButtons or {}) do
-        if entry.icon then entry.icon:Hide() end
+        if entry.handler then
+            entry.handler:SetAttribute("hucdm-restore", GetTime())
+        elseif entry.icon then
+            entry.icon:Hide()
+        end
     end
     self.actionBarButtons = {}
 

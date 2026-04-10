@@ -324,6 +324,14 @@ describe("ActionColumn", function()
     end)
 
     describe("DestroyActionColumn cleanup", function()
+        it("should trigger restore on SecureHandler entries", function()
+            HUCDM:CreateActionColumn(preset)
+            local handler = HUCDM.actionBarButtons[1].handler
+            assert.is_not_nil(handler)
+            HUCDM:DestroyActionColumn()
+            assert.is_not_nil(handler.attrs["hucdm-restore"])
+        end)
+
         it("should hide fallback icon entries", function()
             local saved = _G["MultiBar7Button1"]
             _G["MultiBar7Button1"] = nil
