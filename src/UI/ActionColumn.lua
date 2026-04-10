@@ -74,9 +74,10 @@ function HUCDM:CreateActionColumn(preset)
         self.cdmSpellSlots[spellInfo.id] = { row = row, index = i }
     end
 
-    -- Create icon frames for spells with source = "actionbar".
-    -- Blizzard ActionButtons are fully protected in 12.0 — we create our own
-    -- non-secure icon frames and track spell state via UNIT_AURA / UnitPower.
+    -- Set up ActionButtons for spells with source = "actionbar".
+    -- Uses SecureHandler restricted code to call protected SetParent/SetPoint
+    -- on Blizzard ActionButtons (required in WoW 12.0 due to taint).
+    -- Falls back to static icon frames if the button global is missing.
     self.actionBarButtons = {}
     local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
@@ -84,32 +85,75 @@ function HUCDM:CreateActionColumn(preset)
     for i, spellInfo in ipairs(preset.spells) do
         if spellInfo.source == "actionbar" then
             local row = self.actionRows[i]
+            local btn = spellInfo.bar and spellInfo.slot
+                and self:ResolveActionButton(spellInfo.bar, spellInfo.slot)
 
-            -- Create icon frame at the row position (anonymous to avoid
-            -- global namespace pollution on rebuild)
-            local icon = CreateFrame("Frame", nil, row)
-            icon:SetAllPoints(row)
+            if btn then
+                -- SecureHandler approach: reparent real ActionButton to our row
+                local origParent = btn:GetParent()
+                local handler = CreateFrame("Frame", nil, UIParent,
+                    "SecureHandlerBaseTemplate")
+                handler:SetFrameRef("btn", btn)
+                handler:SetFrameRef("row", row)
+                handler:SetFrameRef("origParent", origParent)
+                handler:SetAttribute("_onattributechanged", [=[
+                    if name == "hucdm-reanchor" then
+                        local b = self:GetFrameRef("btn")
+                        local r = self:GetFrameRef("row")
+                        if b and r then
+                            b:SetParent(r)
+                            b:ClearAllPoints()
+                            b:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
+                            b:SetWidth(48)
+                            b:SetHeight(48)
+                            b:Show()
+                        end
+                    elseif name == "hucdm-restore" then
+                        local b = self:GetFrameRef("btn")
+                        local p = self:GetFrameRef("origParent")
+                        if b and p then
+                            b:SetParent(p)
+                            b:ClearAllPoints()
+                            b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
+                            b:Show()
+                        end
+                    end
+                ]=])
+                handler:SetAttribute("hucdm-reanchor", GetTime())
+                pcall(btn.SetScale, btn, scale)
+                pcall(btn.SetAlpha, btn, alpha)
 
-            -- Spell icon texture (pcall: GetSpellInfo returns tainted values)
-            local tex = icon:CreateTexture(nil, "ARTWORK")
-            tex:SetAllPoints()
-            local ok, spellInfo2 = pcall(C_Spell.GetSpellInfo, spellInfo.id)
-            if ok and spellInfo2 and spellInfo2.iconID then
-                pcall(tex.SetTexture, tex, spellInfo2.iconID)
+                row.hasActionBarButton = true
+
+                self.actionBarButtons[#self.actionBarButtons + 1] = {
+                    handler = handler,
+                    btn = btn,
+                    row = row,
+                    spellID = spellInfo.id,
+                }
+            else
+                -- Fallback: static icon frame (button not found on bar)
+                local icon = CreateFrame("Frame", nil, row)
+                icon:SetAllPoints(row)
+                local tex = icon:CreateTexture(nil, "ARTWORK")
+                tex:SetAllPoints()
+                local ok, info = pcall(C_Spell.GetSpellInfo, spellInfo.id)
+                if ok and info and info.iconID then
+                    pcall(tex.SetTexture, tex, info.iconID)
+                end
+                icon.texture = tex
+                icon:SetScale(scale)
+                icon:SetAlpha(alpha)
+                icon:Show()
+
+                row.hasActionBarButton = true
+
+                self.actionBarButtons[#self.actionBarButtons + 1] = {
+                    icon = icon,
+                    row = row,
+                    spellID = spellInfo.id,
+                }
             end
-            icon.texture = tex
-
-            icon:SetScale(scale)
-            icon:SetAlpha(alpha)
-            icon:Show()
-
-            row.hasActionBarButton = true
-
-            self.actionBarButtons[#self.actionBarButtons + 1] = {
-                icon = icon,
-                row = row,
-                spellID = spellInfo.id,
-            }
         end
     end
 
@@ -270,9 +314,12 @@ function HUCDM:ReanchorCDMFrames()
         end
     end
 
-    -- Update filler icon scale/alpha (rows already marked via hasActionBarButton)
+    -- Update actionbar entry scale/alpha
     for _, entry in ipairs(self.actionBarButtons or {}) do
-        if entry.icon then
+        if entry.btn then
+            pcall(entry.btn.SetScale, entry.btn, scale)
+            pcall(entry.btn.SetAlpha, entry.btn, alpha)
+        elseif entry.icon then
             entry.icon:SetScale(scale)
             entry.icon:SetAlpha(alpha)
         end

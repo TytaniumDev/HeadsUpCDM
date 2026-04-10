@@ -249,13 +249,45 @@ describe("ActionColumn", function()
     end)
 
     describe("CreateActionColumn with actionbar spells", function()
-        it("should create a filler icon for Arcane Shot", function()
+        it("should create a SecureHandler for Arcane Shot", function()
             HUCDM:CreateActionColumn(preset)
             assert.is_not_nil(HUCDM.actionBarButtons)
             assert.equal(1, #HUCDM.actionBarButtons)
             local entry = HUCDM.actionBarButtons[1]
-            assert.is_not_nil(entry.icon)
+            assert.is_not_nil(entry.handler)
             assert.equal(185358, entry.spellID)
+        end)
+
+        it("should register button and row as frame refs", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            local handler = entry.handler
+            assert.equal(_G["MultiBar7Button1"], handler.frameRefs["btn"])
+            assert.equal(entry.row, handler.frameRefs["row"])
+        end)
+
+        it("should register original parent for restore", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            local handler = entry.handler
+            assert.equal(multiBar7Parent, handler.frameRefs["origParent"])
+        end)
+
+        it("should set the reanchor attribute to trigger restricted code", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            local handler = entry.handler
+            assert.is_not_nil(handler.attrs["hucdm-reanchor"])
+        end)
+
+        it("should set _onattributechanged snippet", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            local handler = entry.handler
+            assert.is_not_nil(handler.attrs["_onattributechanged"])
+            local snippet = handler.attrs["_onattributechanged"]
+            assert.truthy(snippet:find("hucdm%-reanchor"))
+            assert.truthy(snippet:find("hucdm%-restore"))
         end)
 
         it("should store row reference", function()
@@ -271,7 +303,19 @@ describe("ActionColumn", function()
             assert.is_true(arcaneRow.hasActionBarButton)
         end)
 
-        it("should not create icons for CDM spells", function()
+        it("should fall back to static icon when button is missing", function()
+            local saved = _G["MultiBar7Button1"]
+            _G["MultiBar7Button1"] = nil
+
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            assert.is_not_nil(entry.icon)
+            assert.is_nil(entry.handler)
+
+            _G["MultiBar7Button1"] = saved
+        end)
+
+        it("should not create handlers for CDM spells", function()
             local bmPreset = HUCDM.SpellData.presets["BM_PACK_LEADER"]
             HUCDM:CreateActionColumn(bmPreset)
             assert.is_not_nil(HUCDM.actionBarButtons)
@@ -280,11 +324,16 @@ describe("ActionColumn", function()
     end)
 
     describe("DestroyActionColumn cleanup", function()
-        it("should hide filler icons", function()
+        it("should hide fallback icon entries", function()
+            local saved = _G["MultiBar7Button1"]
+            _G["MultiBar7Button1"] = nil
+
             HUCDM:CreateActionColumn(preset)
             local icon = HUCDM.actionBarButtons[1].icon
             HUCDM:DestroyActionColumn()
             assert.is_false(icon.shown)
+
+            _G["MultiBar7Button1"] = saved
         end)
 
         it("should clear actionBarButtons table", function()
@@ -335,7 +384,27 @@ describe("ActionColumn", function()
     end)
 
     describe("ReanchorCDMFrames with actionbar spells", function()
-        it("should apply scale to filler icons", function()
+        it("should apply scale to SecureHandler buttons via pcall", function()
+            HUCDM.SetupCDMHooks = noop
+            HUCDM.RegisterColumn = noop
+            HUCDM.RelayoutRows = noop
+
+            HUCDM:CreateActionColumn(preset)
+            HUCDM.db.profile.layout.columns.actions.scale = 1.5
+
+            local mockPool = { EnumerateActive = function() return function() end end }
+            _G.EssentialCooldownViewer = { itemFramePool = mockPool }
+            HUCDM:ReanchorCDMFrames()
+            _G.EssentialCooldownViewer = nil
+
+            local btn = HUCDM.actionBarButtons[1].btn
+            assert.equal(1.5, btn.scale)
+        end)
+
+        it("should apply scale to fallback icons", function()
+            local saved = _G["MultiBar7Button1"]
+            _G["MultiBar7Button1"] = nil
+
             HUCDM.SetupCDMHooks = noop
             HUCDM.RegisterColumn = noop
             HUCDM.RelayoutRows = noop
@@ -350,6 +419,8 @@ describe("ActionColumn", function()
 
             local icon = HUCDM.actionBarButtons[1].icon
             assert.equal(1.5, icon.scale)
+
+            _G["MultiBar7Button1"] = saved
         end)
     end)
 end)
