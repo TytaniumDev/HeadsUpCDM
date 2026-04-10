@@ -21,6 +21,9 @@ local function MockFrame(name)
     function f:SetSize(w, h) self.size.w = w; self.size.h = h end
     function f:GetWidth() return self.size.w end
     function f:GetHeight() return self.size.h end
+    function f:GetLeft() return self._left or 0 end
+    function f:GetTop() return self._top or 0 end
+    function f:GetEffectiveScale() return 1 end
     function f:SetPoint(point, relativeTo, relPoint, x, y)
         self.points[#self.points + 1] = { point, relativeTo, relPoint, x, y }
     end
@@ -261,12 +264,11 @@ describe("ActionColumn", function()
             assert.equal(185358, entry.spellID)
         end)
 
-        it("should register button, row, and uiParent as frame refs", function()
+        it("should register button and uiParent as frame refs", function()
             HUCDM:CreateActionColumn(preset)
             local entry = HUCDM.actionBarButtons[1]
             local handler = entry.handler
             assert.equal(_G["MultiBar7Button1"], handler.frameRefs["btn"])
-            assert.equal(entry.row, handler.frameRefs["row"])
             assert.is_not_nil(handler.frameRefs["uiParent"])
         end)
 
@@ -277,11 +279,14 @@ describe("ActionColumn", function()
             assert.equal(multiBar7Parent, handler.frameRefs["origParent"])
         end)
 
-        it("should set the reanchor attribute to trigger restricted code", function()
+        it("should trigger reanchor via deferred TriggerActionBarHandlers", function()
             HUCDM:CreateActionColumn(preset)
             local entry = HUCDM.actionBarButtons[1]
             local handler = entry.handler
+            -- C_Timer.After(0) fires immediately in test stubs, so handler
+            -- is triggered via TriggerActionBarHandlers during CreateActionColumn
             assert.is_not_nil(handler.attrs["hucdm-reanchor"])
+            assert.is_not_nil(handler.attrs["row-pos"])
         end)
 
         it("should set _onattributechanged snippet", function()
@@ -324,6 +329,29 @@ describe("ActionColumn", function()
             HUCDM:CreateActionColumn(bmPreset)
             assert.is_not_nil(HUCDM.actionBarButtons)
             assert.equal(0, #HUCDM.actionBarButtons)
+        end)
+    end)
+
+    describe("TriggerActionBarHandlers", function()
+        it("should compute row position and set row-pos attribute", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            -- Simulate row having a screen position
+            entry.row._left = 100
+            entry.row._top = 500
+            HUCDM:TriggerActionBarHandlers()
+            assert.is_not_nil(entry.handler.attrs["row-pos"])
+            assert.is_not_nil(entry.handler.attrs["hucdm-reanchor"])
+        end)
+
+        it("should encode position as pipe-delimited x|y string", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            entry.row._left = 200
+            entry.row._top = 600
+            HUCDM:TriggerActionBarHandlers()
+            local pos = entry.handler.attrs["row-pos"]
+            assert.equal("200.0|600.0", pos)
         end)
     end)
 

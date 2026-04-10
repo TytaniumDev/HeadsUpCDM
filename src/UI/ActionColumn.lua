@@ -89,26 +89,35 @@ function HUCDM:CreateActionColumn(preset)
                 and self:ResolveActionButton(spellInfo.bar, spellInfo.slot)
 
             if btn then
-                -- SecureHandler approach: reparent real ActionButton to our row
+                -- SecureHandler approach: reparent real ActionButton via
+                -- restricted code with absolute UIParent offsets.
+                -- Restricted code cannot anchor to non-secure frames, so we
+                -- compute the row's screen position and pass it as attributes.
+                -- The handler is NOT triggered here — positions aren't final
+                -- until ArrangeColumns runs. TriggerActionBarHandlers() fires
+                -- on the next frame via C_Timer.After(0).
                 local origParent = btn:GetParent()
                 local handler = CreateFrame("Frame", nil, UIParent,
                     "SecureHandlerBaseTemplate")
                 handler:SetFrameRef("btn", btn)
-                handler:SetFrameRef("row", row)
                 handler:SetFrameRef("uiParent", UIParent)
                 handler:SetFrameRef("origParent", origParent)
                 handler:SetAttribute("_onattributechanged", [=[
                     if name == "hucdm-reanchor" then
                         local b = self:GetFrameRef("btn")
-                        local r = self:GetFrameRef("row")
                         local uip = self:GetFrameRef("uiParent")
-                        if b and r and uip then
-                            b:SetParent(uip)
-                            b:ClearAllPoints()
-                            b:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
-                            b:SetWidth(48)
-                            b:SetHeight(48)
-                            b:Show()
+                        if b and uip then
+                            local pos = self:GetAttribute("row-pos")
+                            if pos then
+                                local x, y = strsplit("|", pos)
+                                b:SetParent(uip)
+                                b:ClearAllPoints()
+                                b:SetPoint("TOPLEFT", uip, "BOTTOMLEFT",
+                                    tonumber(x) or 0, tonumber(y) or 0)
+                                b:SetWidth(48)
+                                b:SetHeight(48)
+                                b:Show()
+                            end
                         end
                     elseif name == "hucdm-restore" then
                         local b = self:GetFrameRef("btn")
@@ -121,7 +130,6 @@ function HUCDM:CreateActionColumn(preset)
                         end
                     end
                 ]=])
-                handler:SetAttribute("hucdm-reanchor", GetTime())
                 pcall(btn.SetScale, btn, scale)
                 pcall(btn.SetAlpha, btn, alpha)
 
@@ -162,11 +170,38 @@ function HUCDM:CreateActionColumn(preset)
     -- Sync the CDM viewer to our column and install hooks
     self:SetupCDMHooks()
 
-    -- Deferred initial positioning (next frame, let CDM finish its layout)
-    C_Timer.After(0, function() self:ReanchorCDMFrames() end)
+    -- Deferred initial positioning (next frame, after ArrangeColumns finalizes positions)
+    C_Timer.After(0, function()
+        self:TriggerActionBarHandlers()
+        self:ReanchorCDMFrames()
+    end)
 
     self:RegisterColumn("actions", column)
     return column
+end
+
+----------------------------------------------------------------------
+-- Compute absolute positions and trigger SecureHandler reanchor
+-- for ActionBar buttons. Must be called AFTER ArrangeColumns so
+-- row frames have valid screen positions.
+----------------------------------------------------------------------
+function HUCDM:TriggerActionBarHandlers()
+    local scale = UIParent and UIParent.GetEffectiveScale
+        and UIParent:GetEffectiveScale() or 1
+    for _, entry in ipairs(self.actionBarButtons or {}) do
+        if entry.handler and entry.row then
+            -- Row's screen position (absolute, in UIParent coordinates)
+            local left = entry.row:GetLeft()
+            local top = entry.row:GetTop()
+            if left and top then
+                -- SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y) uses
+                -- UIParent's bottom-left as origin; y = top of row
+                entry.handler:SetAttribute("row-pos",
+                    string.format("%.1f|%.1f", left / scale, top / scale))
+                entry.handler:SetAttribute("hucdm-reanchor", GetTime())
+            end
+        end
+    end
 end
 
 ----------------------------------------------------------------------
