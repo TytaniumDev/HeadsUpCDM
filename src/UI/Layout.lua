@@ -34,6 +34,10 @@ function HUCDM:CreateLayout()
         frame:StopMovingOrSizing()
         local point, _, _, x, y = frame:GetPoint(1)
         self.db.profile.position = { point = point, x = x, y = y }
+        -- Re-anchor ActionButtons to their new screen positions
+        if self.TriggerActionBarHandlers then
+            self:TriggerActionBarHandlers()
+        end
     end)
 
     -- Semi-transparent background when unlocked
@@ -111,17 +115,14 @@ function HUCDM:ArrangeColumns()
             end
             prevFrame = col
 
-            -- Apply per-column settings
+            -- Apply per-column settings (alpha only — scale was removed)
             local settings = self.db.profile.layout.columns[key]
-            local scale = (settings and settings.scale) or 1
             if settings then
-                col:SetScale(scale)
                 col:SetAlpha(settings.alpha)
             end
 
-            -- Use scaled dimensions for layout sizing
-            totalWidth = totalWidth + (col:GetWidth() * scale)
-            local h = col:GetHeight() * scale
+            totalWidth = totalWidth + col:GetWidth()
+            local h = col:GetHeight()
             if h > maxHeight then maxHeight = h end
         end
     end

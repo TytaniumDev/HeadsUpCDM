@@ -125,7 +125,6 @@ function HUCDM:CreateActionColumn(preset)
     -- on Blizzard ActionButtons (required in WoW 12.0 due to taint).
     -- Falls back to static icon frames if the button global is missing.
     self.actionBarButtons = {}
-    local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
 
     for i, spellInfo in ipairs(preset.spells) do
@@ -167,7 +166,6 @@ function HUCDM:CreateActionColumn(preset)
                     pcall(tex.SetTexture, tex, info.iconID)
                 end
                 icon.texture = tex
-                icon:SetScale(scale)
                 icon:SetAlpha(alpha)
                 icon:Show()
 
@@ -320,7 +318,6 @@ function HUCDM:ReanchorCDMFrames()
 
     local iconSize = 48
     local settings = self.db.profile.layout.columns.actions
-    local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
 
     -- Reset flags before scanning (preserve rows with action bar buttons as having content)
@@ -335,11 +332,10 @@ function HUCDM:ReanchorCDMFrames()
             local slot = (overrideID and self.cdmSpellSlots[overrideID])
                 or (baseID and self.cdmSpellSlots[baseID])
             if slot then
-                -- Position frame at our row anchor and apply scale
+                -- Position frame at our row anchor
                 frame:ClearAllPoints()
                 frame:SetPoint("TOPLEFT", slot.row, "TOPLEFT", 0, 0)
                 frame:SetSize(iconSize, iconSize)
-                frame:SetScale(scale)
                 frame:SetAlpha(alpha)
 
                 -- Store the canonical anchor so SetPoint hook can enforce it
@@ -371,13 +367,11 @@ function HUCDM:ReanchorCDMFrames()
         end
     end
 
-    -- Update actionbar entry alpha (scale is intentionally not applied
-    -- to real ActionButtons — it causes position drift via SetPoint)
+    -- Update actionbar entry alpha
     for _, entry in ipairs(self.actionBarButtons or {}) do
         if entry.btn then
             pcall(entry.btn.SetAlpha, entry.btn, alpha)
         elseif entry.icon then
-            entry.icon:SetScale(scale)
             entry.icon:SetAlpha(alpha)
         end
     end

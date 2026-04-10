@@ -70,21 +70,6 @@ function HUCDM:SetupOptions()
                         type = "description",
                         order = 1,
                     },
-                    actionsScale = {
-                        name = "Scale",
-                        desc = "Scale the entire HUD (all columns)",
-                        type = "range", min = 0.5, max = 2.0, step = 0.05,
-                        order = 10,
-                        get = function() return self.db.profile.layout.columns.actions.scale end,
-                        set = function(_, val)
-                            self.db.profile.layout.columns.actions.scale = val
-                            self.db.profile.layout.columns.resource.scale = val
-                            self.db.profile.layout.columns.buffBars.scale = val
-                            if self.ReanchorCDMFrames then self:ReanchorCDMFrames() end
-                            if self.ReanchorBuffIcons then self:ReanchorBuffIcons() end
-                            self:ArrangeColumns()
-                        end,
-                    },
                     actionsAlpha = {
                         name = "Action Bar Opacity",
                         type = "range", min = 0.0, max = 1.0, step = 0.05,

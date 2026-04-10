@@ -8,16 +8,14 @@ HUCDM.defaults = {
     profile = {
         enabled = true,
         locked = false,
-        scale = 1.0,
-        alpha = 1.0,
         position = { point = "CENTER", x = 0, y = 200 },
 
         layout = {
             columnOrder = { "buffBars", "resource", "actions" },
             columns = {
-                actions  = { scale = 1.0, alpha = 1.0, spacing = 6, padding = 0 },
-                resource = { scale = 1.0, alpha = 1.0, spacing = 6, padding = 0 },
-                buffBars = { scale = 1.0, alpha = 1.0, spacing = 3, padding = 0 },
+                actions  = { alpha = 1.0, spacing = 6, padding = 0 },
+                resource = { alpha = 1.0, spacing = 6, padding = 0 },
+                buffBars = { alpha = 1.0, spacing = 3, padding = 0 },
             },
         },
 

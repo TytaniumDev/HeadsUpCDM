@@ -375,13 +375,13 @@ describe("ActionColumn", function()
     end)
 
     describe("ReanchorCDMFrames with actionbar spells", function()
-        it("should NOT apply scale to real ActionButtons (causes drift)", function()
+        it("should apply alpha to real ActionButtons via pcall", function()
             HUCDM.SetupCDMHooks = noop
             HUCDM.RegisterColumn = noop
             HUCDM.RelayoutRows = noop
 
             HUCDM:CreateActionColumn(preset)
-            HUCDM.db.profile.layout.columns.actions.scale = 1.5
+            HUCDM.db.profile.layout.columns.actions.alpha = 0.5
 
             local mockPool = { EnumerateActive = function() return function() end end }
             _G.EssentialCooldownViewer = { itemFramePool = mockPool }
@@ -389,11 +389,10 @@ describe("ActionColumn", function()
             _G.EssentialCooldownViewer = nil
 
             local btn = HUCDM.actionBarButtons[1].btn
-            -- Scale stays at default (1.0), not the HUD scale
-            assert.equal(1.0, btn.scale)
+            assert.equal(0.5, btn.alpha)
         end)
 
-        it("should apply scale to fallback icons", function()
+        it("should apply alpha to fallback icons", function()
             local saved = _G["MultiBar7Button1"]
             _G["MultiBar7Button1"] = nil
 
@@ -402,7 +401,7 @@ describe("ActionColumn", function()
             HUCDM.RelayoutRows = noop
 
             HUCDM:CreateActionColumn(preset)
-            HUCDM.db.profile.layout.columns.actions.scale = 1.5
+            HUCDM.db.profile.layout.columns.actions.alpha = 0.5
 
             local mockPool = { EnumerateActive = function() return function() end end }
             _G.EssentialCooldownViewer = { itemFramePool = mockPool }
@@ -410,7 +409,7 @@ describe("ActionColumn", function()
             _G.EssentialCooldownViewer = nil
 
             local icon = HUCDM.actionBarButtons[1].icon
-            assert.equal(1.5, icon.scale)
+            assert.equal(0.5, icon.alpha)
 
             _G["MultiBar7Button1"] = saved
         end)

@@ -79,10 +79,6 @@ describe("Config", function()
         assert.is_false(HUCDM.defaults.profile.locked)
     end)
 
-    it("should default scale to 1.0", function()
-        assert.equal(1.0, HUCDM.defaults.profile.scale)
-    end)
-
     it("should default position to center-top", function()
         local pos = HUCDM.defaults.profile.position
         assert.equal("CENTER", pos.point)
@@ -101,7 +97,6 @@ describe("Config", function()
         assert.is_not_nil(cols.actions)
         assert.is_not_nil(cols.resource)
         assert.is_not_nil(cols.buffBars)
-        assert.equal(1.0, cols.actions.scale)
         assert.equal(1.0, cols.actions.alpha)
         assert.equal(6, cols.actions.spacing)
         assert.equal(0, cols.actions.padding)
