@@ -23,6 +23,52 @@ function HUCDM:ResolveActionButton(bar, slot)
     return _G[prefix .. slot]
 end
 
+----------------------------------------------------------------------
+-- SecureHandler for ActionButton reparenting — MUST be created at
+-- file-load time (before PLAYER_LOGIN) to be "explicitly protected".
+-- Runtime-created handlers cannot execute protected operations on
+-- Blizzard ActionButtons. Matches EllesmereUI's pattern.
+--
+-- Uses indexed attributes: "btn-N" frame refs, "layout-N" position
+-- strings. Trigger: SetAttribute("do-setup", GetTime()).
+----------------------------------------------------------------------
+local actionBarHandler = CreateFrame("Frame", "HUCDM_ActionBarHandler",
+    UIParent, "SecureHandlerAttributeTemplate")
+
+actionBarHandler:SetAttributeNoHandler("_onattributechanged", [=[
+    if name == "do-setup" then
+        local count = self:GetAttribute("btn-count") or 0
+        local uip = self:GetFrameRef("uiParent")
+        if not uip then return end
+        for i = 1, count do
+            local b = self:GetFrameRef("btn-" .. i)
+            local layout = self:GetAttribute("layout-" .. i)
+            if b and layout then
+                local x, y, w, h = strsplit("|", layout)
+                b:SetParent(uip)
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", uip, "BOTTOMLEFT",
+                    tonumber(x) or 0, tonumber(y) or 0)
+                b:SetWidth(tonumber(w) or 48)
+                b:SetHeight(tonumber(h) or 48)
+                b:Show()
+            end
+        end
+    elseif name == "do-restore" then
+        local count = self:GetAttribute("btn-count") or 0
+        for i = 1, count do
+            local b = self:GetFrameRef("btn-" .. i)
+            local p = self:GetFrameRef("orig-" .. i)
+            if b and p then
+                b:SetParent(p)
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
+                b:Show()
+            end
+        end
+    end
+]=])
+
 -- Per-frame data (weak-keyed so GC cleans up recycled frames)
 local frameData = setmetatable({}, { __mode = "k" })
 
@@ -89,54 +135,20 @@ function HUCDM:CreateActionColumn(preset)
                 and self:ResolveActionButton(spellInfo.bar, spellInfo.slot)
 
             if btn then
-                -- SecureHandler approach: reparent real ActionButton via
-                -- restricted code with absolute UIParent offsets.
-                -- Restricted code cannot anchor to non-secure frames, so we
-                -- compute the row's screen position and pass it as attributes.
-                -- The handler is NOT triggered here — positions aren't final
-                -- until ArrangeColumns runs. TriggerActionBarHandlers() fires
-                -- on the next frame via C_Timer.After(0).
+                -- Register button on the file-load-time SecureHandler.
+                -- The handler is explicitly protected and can execute
+                -- SetParent/SetPoint on Blizzard ActionButtons.
+                -- Trigger is deferred to TriggerActionBarHandlers().
+                local abIdx = #self.actionBarButtons + 1
                 local origParent = btn:GetParent()
-                local handler = CreateFrame("Frame", nil, UIParent,
-                    "SecureHandlerBaseTemplate")
-                handler:SetFrameRef("btn", btn)
-                handler:SetFrameRef("uiParent", UIParent)
-                handler:SetFrameRef("origParent", origParent)
-                handler:SetAttribute("_onattributechanged", [=[
-                    if name == "hucdm-reanchor" then
-                        local b = self:GetFrameRef("btn")
-                        local uip = self:GetFrameRef("uiParent")
-                        if b and uip then
-                            local pos = self:GetAttribute("row-pos")
-                            if pos then
-                                local x, y = strsplit("|", pos)
-                                b:SetParent(uip)
-                                b:ClearAllPoints()
-                                b:SetPoint("TOPLEFT", uip, "BOTTOMLEFT",
-                                    tonumber(x) or 0, tonumber(y) or 0)
-                                b:SetWidth(48)
-                                b:SetHeight(48)
-                                b:Show()
-                            end
-                        end
-                    elseif name == "hucdm-restore" then
-                        local b = self:GetFrameRef("btn")
-                        local p = self:GetFrameRef("origParent")
-                        if b and p then
-                            b:SetParent(p)
-                            b:ClearAllPoints()
-                            b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
-                            b:Show()
-                        end
-                    end
-                ]=])
+                actionBarHandler:SetFrameRef("btn-" .. abIdx, btn)
+                actionBarHandler:SetFrameRef("orig-" .. abIdx, origParent)
                 pcall(btn.SetScale, btn, scale)
                 pcall(btn.SetAlpha, btn, alpha)
 
                 row.hasActionBarButton = true
 
                 self.actionBarButtons[#self.actionBarButtons + 1] = {
-                    handler = handler,
                     btn = btn,
                     row = row,
                     spellID = spellInfo.id,
@@ -186,20 +198,34 @@ end
 -- row frames have valid screen positions.
 ----------------------------------------------------------------------
 function HUCDM:TriggerActionBarHandlers()
-    local scale = UIParent and UIParent.GetEffectiveScale
-        and UIParent:GetEffectiveScale() or 1
-    for _, entry in ipairs(self.actionBarButtons or {}) do
-        if entry.handler and entry.row then
-            -- Row's screen position (absolute, in UIParent coordinates)
+    local buttons = self.actionBarButtons
+    if not buttons or #buttons == 0 then return end
+
+    -- Register UIParent ref and encode layout for each button
+    actionBarHandler:SetFrameRef("uiParent", UIParent)
+    local count = 0
+    for i, entry in ipairs(buttons) do
+        if entry.btn and entry.row then
             local left = entry.row:GetLeft()
             local top = entry.row:GetTop()
             if left and top then
-                -- SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y) uses
-                -- UIParent's bottom-left as origin; y = top of row
-                entry.handler:SetAttribute("row-pos",
-                    string.format("%.1f|%.1f", left / scale, top / scale))
-                entry.handler:SetAttribute("hucdm-reanchor", GetTime())
+                count = count + 1
+                actionBarHandler:SetAttribute("layout-" .. i,
+                    string.format("%.1f|%.1f|48|48", left, top))
             end
+        end
+    end
+    actionBarHandler:SetAttribute("btn-count", #buttons)
+
+    if count > 0 then
+        actionBarHandler:SetAttribute("do-setup", GetTime())
+        -- DEBUG: check button state after trigger
+        local entry = buttons[1]
+        if entry and entry.btn then
+            local ok, parent = pcall(entry.btn.GetParent, entry.btn)
+            local pName = ok and parent and parent.GetName
+                and parent:GetName() or tostring(parent)
+            self:Print("After trigger: parent=" .. tostring(pName))
         end
     end
 end
@@ -444,13 +470,17 @@ end
 function HUCDM:DestroyActionColumn()
     self:RestoreButtons()
 
-    -- Clean up actionbar entries: restore SecureHandler buttons, hide fallback icons
+    -- Restore SecureHandler buttons, hide fallback icons
+    local hasHandlerEntries = false
     for _, entry in ipairs(self.actionBarButtons or {}) do
-        if entry.handler then
-            entry.handler:SetAttribute("hucdm-restore", GetTime())
+        if entry.btn then
+            hasHandlerEntries = true
         elseif entry.icon then
             entry.icon:Hide()
         end
+    end
+    if hasHandlerEntries then
+        actionBarHandler:SetAttribute("do-restore", GetTime())
     end
     self.actionBarButtons = {}
 
