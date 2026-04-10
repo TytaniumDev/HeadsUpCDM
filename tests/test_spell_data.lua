@@ -92,6 +92,17 @@ describe("SpellData", function()
             assert.equal("Arcane Shot", arcaneShot.name)
             assert.equal("actionbar", arcaneShot.source)
         end)
+
+        it("should pair Double Tap with Rapid Fire, not Aimed Shot", function()
+            local aimedShot = preset.spells[1]
+            local rapidFire = preset.spells[2]
+            assert.equal("Aimed Shot", aimedShot.name)
+            assert.equal("Rapid Fire", rapidFire.name)
+            assert.equal(1, #aimedShot.pairedBuffs)
+            assert.equal(389019, aimedShot.pairedBuffs[1].id)
+            assert.equal(1, #rapidFire.pairedBuffs)
+            assert.equal(473370, rapidFire.pairedBuffs[1].id)
+        end)
     end)
 
     describe("MM Sentinel preset", function()
@@ -104,6 +115,17 @@ describe("SpellData", function()
             local arcaneShot = preset.spells[3]
             assert.equal("Arcane Shot", arcaneShot.name)
             assert.equal("actionbar", arcaneShot.source)
+        end)
+
+        it("should pair Double Tap with Rapid Fire, not Aimed Shot", function()
+            local aimedShot = preset.spells[1]
+            local rapidFire = preset.spells[2]
+            assert.equal("Aimed Shot", aimedShot.name)
+            assert.equal("Rapid Fire", rapidFire.name)
+            assert.equal(1, #aimedShot.pairedBuffs)
+            assert.equal(389019, aimedShot.pairedBuffs[1].id)
+            assert.equal(1, #rapidFire.pairedBuffs)
+            assert.equal(473370, rapidFire.pairedBuffs[1].id)
         end)
     end)
 

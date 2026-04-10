@@ -109,10 +109,14 @@ HUCDM.SpellData.presets = {
                 id = 19434, name = "Aimed Shot",
                 pairedBuffs = {
                     { id = 389019, name = "Bulletstorm" },
+                },
+            },
+            {
+                id = 257044, name = "Rapid Fire",
+                pairedBuffs = {
                     { id = 473370, name = "Double Tap" },
                 },
             },
-            { id = 257044, name = "Rapid Fire", pairedBuffs = {} },
             {
                 id = 185358, name = "Arcane Shot",
                 source = "actionbar", bar = 8, slot = 1,
@@ -149,10 +153,14 @@ HUCDM.SpellData.presets = {
                 id = 19434, name = "Aimed Shot",
                 pairedBuffs = {
                     { id = 389019, name = "Bulletstorm" },
+                },
+            },
+            {
+                id = 257044, name = "Rapid Fire",
+                pairedBuffs = {
                     { id = 473370, name = "Double Tap" },
                 },
             },
-            { id = 257044, name = "Rapid Fire", pairedBuffs = {} },
             {
                 id = 185358, name = "Arcane Shot",
                 source = "actionbar", bar = 8, slot = 1,
