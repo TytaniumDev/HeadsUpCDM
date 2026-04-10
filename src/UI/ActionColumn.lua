@@ -66,11 +66,19 @@ actionBarHandler:SetAttributeNoHandler("_onattributechanged", [=[
                 b:Show()
             end
         end
+        -- Clear btn-count so a stale do-setup can't act on already-restored refs
+        self:SetAttribute("btn-count", 0)
     end
 ]=])
 
 -- Per-frame data (weak-keyed so GC cleans up recycled frames)
 local frameData = setmetatable({}, { __mode = "k" })
+
+-- Persistent cache of each ActionButton's TRUE original parent, captured the
+-- first time we see it. Used across DestroyActionColumn -> CreateActionColumn
+-- cycles so a deferred restore (combat lockdown) always targets the real
+-- Blizzard bar frame, not a UIParent we reparented it to ourselves.
+local origParents = setmetatable({}, { __mode = "k" })
 
 local REANCHOR_THROTTLE = 0.15
 local reanchorDirty = false
@@ -143,9 +151,14 @@ function HUCDM:CreateActionColumn(preset)
                 -- Scale interacts with SetPoint offsets in restricted code,
                 -- causing position drift. Buttons stay at native size.
                 local abIdx = #self.actionBarButtons + 1
-                local origParent = btn:GetParent()
+                -- Capture original parent once, then reuse. If we re-enter
+                -- CreateActionColumn after a prior do-setup, btn:GetParent()
+                -- is UIParent (our reparent target), not the real Blizzard bar.
+                if not origParents[btn] then
+                    origParents[btn] = btn:GetParent()
+                end
                 actionBarHandler:SetFrameRef("btn-" .. abIdx, btn)
-                actionBarHandler:SetFrameRef("orig-" .. abIdx, origParent)
+                actionBarHandler:SetFrameRef("orig-" .. abIdx, origParents[btn])
                 pcall(btn.SetAlpha, btn, alpha)
 
                 row.hasActionBarButton = true
@@ -201,23 +214,37 @@ end
 function HUCDM:TriggerActionBarHandlers()
     local buttons = self.actionBarButtons
     if not buttons or #buttons == 0 then return end
+    if InCombatLockdown() then
+        -- Restricted SetParent/SetPoint are blocked in combat; the caller
+        -- (drag-stop / rebuild) will retry after PLAYER_REGEN_ENABLED.
+        self.pendingActionBarRetrigger = true
+        return
+    end
 
     actionBarHandler:SetFrameRef("uiParent", UIParent)
-    local count = 0
+    local validCount = 0
+    -- "w|h" matches iconSize = 48; update both if the icon size changes.
     for i, entry in ipairs(buttons) do
+        local wrote = false
         if entry.btn and entry.row then
             local left = entry.row:GetLeft()
             local top = entry.row:GetTop()
             if left and top then
-                count = count + 1
+                validCount = validCount + 1
                 actionBarHandler:SetAttribute("layout-" .. i,
                     string.format("%.1f|%.1f|48|48", left, top))
+                wrote = true
             end
+        end
+        if not wrote then
+            -- Clear any stale layout from a previous trigger so the restricted
+            -- code's `if b and layout then` guard skips this index cleanly.
+            actionBarHandler:SetAttribute("layout-" .. i, nil)
         end
     end
     actionBarHandler:SetAttribute("btn-count", #buttons)
 
-    if count > 0 then
+    if validCount > 0 then
         actionBarHandler:SetAttribute("do-setup", GetTime())
     end
 end
@@ -468,7 +495,16 @@ function HUCDM:DestroyActionColumn()
         end
     end
     if hasHandlerEntries then
-        actionBarHandler:SetAttribute("do-restore", GetTime())
+        if InCombatLockdown() then
+            -- do-restore triggers restricted SetParent/SetPoint, which is
+            -- blocked in combat. Defer to PLAYER_REGEN_ENABLED via the
+            -- pending flag — origParents cache keeps the target parent
+            -- stable even if a new CreateActionColumn runs before flush.
+            self.pendingActionBarRestore = true
+            self:Print("HeadsUpCDM: action buttons will be restored after combat ends.")
+        else
+            actionBarHandler:SetAttribute("do-restore", GetTime())
+        end
     end
     self.actionBarButtons = {}
 
@@ -489,6 +525,22 @@ end
 ----------------------------------------------------------------------
 function HUCDM:RescanActionButtons()
     self:ReanchorCDMFrames()
+end
+
+----------------------------------------------------------------------
+-- Flush deferred handler work that was blocked by combat lockdown.
+-- Called from Core.lua's PLAYER_REGEN_ENABLED handler.
+----------------------------------------------------------------------
+function HUCDM:FlushPendingActionBarRestore()
+    if InCombatLockdown() then return end
+    if self.pendingActionBarRestore then
+        self.pendingActionBarRestore = false
+        actionBarHandler:SetAttribute("do-restore", GetTime())
+    end
+    if self.pendingActionBarRetrigger then
+        self.pendingActionBarRetrigger = false
+        self:TriggerActionBarHandlers()
+    end
 end
 
 ----------------------------------------------------------------------

@@ -101,6 +101,7 @@ function HUCDM:OnCombatDrop()
         self.pendingRescan = false
         self:RescanActionButtons()
     end
+    self:FlushPendingActionBarRestore()
 end
 
 function HUCDM:OnActionBarChanged()
