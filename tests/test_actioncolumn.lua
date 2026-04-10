@@ -375,7 +375,7 @@ describe("ActionColumn", function()
     end)
 
     describe("ReanchorCDMFrames with actionbar spells", function()
-        it("should apply scale to SecureHandler buttons via pcall", function()
+        it("should NOT apply scale to real ActionButtons (causes drift)", function()
             HUCDM.SetupCDMHooks = noop
             HUCDM.RegisterColumn = noop
             HUCDM.RelayoutRows = noop
@@ -389,7 +389,8 @@ describe("ActionColumn", function()
             _G.EssentialCooldownViewer = nil
 
             local btn = HUCDM.actionBarButtons[1].btn
-            assert.equal(1.5, btn.scale)
+            -- Scale stays at default (1.0), not the HUD scale
+            assert.equal(1.0, btn.scale)
         end)
 
         it("should apply scale to fallback icons", function()

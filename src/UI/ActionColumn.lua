@@ -139,11 +139,14 @@ function HUCDM:CreateActionColumn(preset)
                 -- The handler is explicitly protected and can execute
                 -- SetParent/SetPoint on Blizzard ActionButtons.
                 -- Trigger is deferred to TriggerActionBarHandlers().
+                --
+                -- Note: HUD scale does NOT apply to action bar buttons.
+                -- Scale interacts with SetPoint offsets in restricted code,
+                -- causing position drift. Buttons stay at native size.
                 local abIdx = #self.actionBarButtons + 1
                 local origParent = btn:GetParent()
                 actionBarHandler:SetFrameRef("btn-" .. abIdx, btn)
                 actionBarHandler:SetFrameRef("orig-" .. abIdx, origParent)
-                pcall(btn.SetScale, btn, scale)
                 pcall(btn.SetAlpha, btn, alpha)
 
                 row.hasActionBarButton = true
@@ -201,12 +204,6 @@ function HUCDM:TriggerActionBarHandlers()
     local buttons = self.actionBarButtons
     if not buttons or #buttons == 0 then return end
 
-    -- Button scale: pcall(SetScale) was already applied, so the restricted
-    -- code's SetPoint coordinates get multiplied by it. Divide by scale
-    -- so the final screen position matches the row's actual position.
-    local settings = self.db.profile.layout.columns.actions
-    local btnScale = (settings and settings.scale) or 1
-
     actionBarHandler:SetFrameRef("uiParent", UIParent)
     local count = 0
     for i, entry in ipairs(buttons) do
@@ -216,8 +213,7 @@ function HUCDM:TriggerActionBarHandlers()
             if left and top then
                 count = count + 1
                 actionBarHandler:SetAttribute("layout-" .. i,
-                    string.format("%.1f|%.1f|48|48",
-                        left / btnScale, top / btnScale))
+                    string.format("%.1f|%.1f|48|48", left, top))
             end
         end
     end
@@ -375,10 +371,10 @@ function HUCDM:ReanchorCDMFrames()
         end
     end
 
-    -- Update actionbar entry scale/alpha
+    -- Update actionbar entry alpha (scale is intentionally not applied
+    -- to real ActionButtons — it causes position drift via SetPoint)
     for _, entry in ipairs(self.actionBarButtons or {}) do
         if entry.btn then
-            pcall(entry.btn.SetScale, entry.btn, scale)
             pcall(entry.btn.SetAlpha, entry.btn, alpha)
         elseif entry.icon then
             entry.icon:SetScale(scale)
