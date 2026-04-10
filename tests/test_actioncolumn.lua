@@ -226,6 +226,28 @@ describe("ActionColumn", function()
         HUCDM.actionBarButtons = nil
     end)
 
+    describe("ResolveActionButton", function()
+        it("should resolve bar 8 slot 1 to MultiBar7Button1", function()
+            local btn = HUCDM:ResolveActionButton(8, 1)
+            assert.equal(_G["MultiBar7Button1"], btn)
+        end)
+
+        it("should resolve bar 8 slot 5 to MultiBar7Button5", function()
+            local btn = HUCDM:ResolveActionButton(8, 5)
+            assert.equal(_G["MultiBar7Button5"], btn)
+        end)
+
+        it("should return nil for missing button", function()
+            local btn = HUCDM:ResolveActionButton(8, 99)
+            assert.is_nil(btn)
+        end)
+
+        it("should return nil for unknown bar number", function()
+            local btn = HUCDM:ResolveActionButton(99, 1)
+            assert.is_nil(btn)
+        end)
+    end)
+
     describe("CreateActionColumn with actionbar spells", function()
         it("should create a filler icon for Arcane Shot", function()
             HUCDM:CreateActionColumn(preset)

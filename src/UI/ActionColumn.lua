@@ -5,6 +5,24 @@
 
 local HUCDM = _G.HeadsUpCDM
 
+-- Bar number -> Blizzard button name prefix
+local BAR_BUTTON_PREFIX = {
+    [1] = "ActionButton",
+    [2] = "MultiBarBottomLeftButton",
+    [3] = "MultiBarBottomRightButton",
+    [4] = "MultiBarRightButton",
+    [5] = "MultiBarLeftButton",
+    [6] = "MultiBar5Button",
+    [7] = "MultiBar6Button",
+    [8] = "MultiBar7Button",
+}
+
+function HUCDM:ResolveActionButton(bar, slot)
+    local prefix = BAR_BUTTON_PREFIX[bar]
+    if not prefix then return nil end
+    return _G[prefix .. slot]
+end
+
 -- Per-frame data (weak-keyed so GC cleans up recycled frames)
 local frameData = setmetatable({}, { __mode = "k" })
 
