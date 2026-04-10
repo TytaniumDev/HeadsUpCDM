@@ -141,6 +141,9 @@ _G.EventRegistry = {
 _G.AssistedCombatManager = nil
 _G.CooldownViewerEssentialItemMixin = nil
 
+-- Stub UIParent
+_G.UIParent = MockFrame("UIParent")
+
 -- Create mock ActionButton frames for MultiBar7
 local multiBar7Parent = MockFrame("MultiBar7")
 for i = 1, 12 do
@@ -258,12 +261,13 @@ describe("ActionColumn", function()
             assert.equal(185358, entry.spellID)
         end)
 
-        it("should register button and row as frame refs", function()
+        it("should register button, row, and uiParent as frame refs", function()
             HUCDM:CreateActionColumn(preset)
             local entry = HUCDM.actionBarButtons[1]
             local handler = entry.handler
             assert.equal(_G["MultiBar7Button1"], handler.frameRefs["btn"])
             assert.equal(entry.row, handler.frameRefs["row"])
+            assert.is_not_nil(handler.frameRefs["uiParent"])
         end)
 
         it("should register original parent for restore", function()

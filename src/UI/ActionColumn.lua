@@ -95,13 +95,15 @@ function HUCDM:CreateActionColumn(preset)
                     "SecureHandlerBaseTemplate")
                 handler:SetFrameRef("btn", btn)
                 handler:SetFrameRef("row", row)
+                handler:SetFrameRef("uiParent", UIParent)
                 handler:SetFrameRef("origParent", origParent)
                 handler:SetAttribute("_onattributechanged", [=[
                     if name == "hucdm-reanchor" then
                         local b = self:GetFrameRef("btn")
                         local r = self:GetFrameRef("row")
-                        if b and r then
-                            b:SetParent(r)
+                        local uip = self:GetFrameRef("uiParent")
+                        if b and r and uip then
+                            b:SetParent(uip)
                             b:ClearAllPoints()
                             b:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
                             b:SetWidth(48)
