@@ -15,10 +15,13 @@ function HUCDM:CreateResourceBar(totalHeight)
     column:SetSize(barWidth, totalHeight)
     column:Show()
 
-    -- StatusBar
+    -- StatusBar — two-point anchored so it auto-resizes with the column.
+    -- (SetHeight on a single-anchor frame gets blocked by 12.0 taint when
+    -- the sync runs from Blizzard's CDM hook chains, leaving the bar stuck
+    -- at its creation size. Two-point anchors sidestep that entirely.)
     local bar = CreateFrame("StatusBar", "HUCDM_FocusBar", column)
-    bar:SetSize(barWidth, totalHeight)
     bar:SetPoint("TOPLEFT", column, "TOPLEFT", 0, 0)
+    bar:SetPoint("BOTTOMRIGHT", column, "BOTTOMRIGHT", 0, 0)
     bar:SetOrientation("VERTICAL")
     bar:SetMinMaxValues(0, 100)
     bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
