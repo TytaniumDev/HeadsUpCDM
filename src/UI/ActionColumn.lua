@@ -55,15 +55,17 @@ actionBarHandler:SetAttributeNoHandler("_onattributechanged", [=[
             end
         end
     elseif name == "do-restore" then
+        -- Release buttons by hiding them. We intentionally do NOT SetParent
+        -- back to the original Blizzard bar: in WoW 12.0's restricted env,
+        -- stock Blizzard bar frames (MultiBarBottomRight, etc.) are protected
+        -- but not "explicitly protected", so b:SetParent(origBar) throws
+        -- "Invalid frame handle for SetParent". See EllesmereUI for the same
+        -- pattern — it never restores to stock parents either.
         local count = self:GetAttribute("btn-count") or 0
         for i = 1, count do
             local b = self:GetFrameRef("btn-" .. i)
-            local p = self:GetFrameRef("orig-" .. i)
-            if b and p then
-                b:SetParent(p)
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
-                b:Show()
+            if b then
+                b:Hide()
             end
         end
         -- Clear btn-count so a stale do-setup can't act on already-restored refs
@@ -73,12 +75,6 @@ actionBarHandler:SetAttributeNoHandler("_onattributechanged", [=[
 
 -- Per-frame data (weak-keyed so GC cleans up recycled frames)
 local frameData = setmetatable({}, { __mode = "k" })
-
--- Persistent cache of each ActionButton's TRUE original parent, captured the
--- first time we see it. Used across DestroyActionColumn -> CreateActionColumn
--- cycles so a deferred restore (combat lockdown) always targets the real
--- Blizzard bar frame, not a UIParent we reparented it to ourselves.
-local origParents = setmetatable({}, { __mode = "k" })
 
 local REANCHOR_THROTTLE = 0.15
 local reanchorDirty = false
@@ -151,14 +147,7 @@ function HUCDM:CreateActionColumn(preset)
                 -- Scale interacts with SetPoint offsets in restricted code,
                 -- causing position drift. Buttons stay at native size.
                 local abIdx = #self.actionBarButtons + 1
-                -- Capture original parent once, then reuse. If we re-enter
-                -- CreateActionColumn after a prior do-setup, btn:GetParent()
-                -- is UIParent (our reparent target), not the real Blizzard bar.
-                if not origParents[btn] then
-                    origParents[btn] = btn:GetParent()
-                end
                 actionBarHandler:SetFrameRef("btn-" .. abIdx, btn)
-                actionBarHandler:SetFrameRef("orig-" .. abIdx, origParents[btn])
                 pcall(btn.SetAlpha, btn, alpha)
 
                 row.hasActionBarButton = true
@@ -496,10 +485,8 @@ function HUCDM:DestroyActionColumn()
     end
     if hasHandlerEntries then
         if InCombatLockdown() then
-            -- do-restore triggers restricted SetParent/SetPoint, which is
-            -- blocked in combat. Defer to PLAYER_REGEN_ENABLED via the
-            -- pending flag — origParents cache keeps the target parent
-            -- stable even if a new CreateActionColumn runs before flush.
+            -- do-restore triggers restricted Hide(), which is blocked in
+            -- combat. Defer to PLAYER_REGEN_ENABLED via the pending flag.
             self.pendingActionBarRestore = true
             self:Print("HeadsUpCDM: action buttons will be restored after combat ends.")
         else
