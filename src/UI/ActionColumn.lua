@@ -201,7 +201,12 @@ function HUCDM:TriggerActionBarHandlers()
     local buttons = self.actionBarButtons
     if not buttons or #buttons == 0 then return end
 
-    -- Register UIParent ref and encode layout for each button
+    -- Button scale: pcall(SetScale) was already applied, so the restricted
+    -- code's SetPoint coordinates get multiplied by it. Divide by scale
+    -- so the final screen position matches the row's actual position.
+    local settings = self.db.profile.layout.columns.actions
+    local btnScale = (settings and settings.scale) or 1
+
     actionBarHandler:SetFrameRef("uiParent", UIParent)
     local count = 0
     for i, entry in ipairs(buttons) do
@@ -211,7 +216,8 @@ function HUCDM:TriggerActionBarHandlers()
             if left and top then
                 count = count + 1
                 actionBarHandler:SetAttribute("layout-" .. i,
-                    string.format("%.1f|%.1f|48|48", left, top))
+                    string.format("%.1f|%.1f|48|48",
+                        left / btnScale, top / btnScale))
             end
         end
     end
@@ -219,14 +225,6 @@ function HUCDM:TriggerActionBarHandlers()
 
     if count > 0 then
         actionBarHandler:SetAttribute("do-setup", GetTime())
-        -- DEBUG: check button state after trigger
-        local entry = buttons[1]
-        if entry and entry.btn then
-            local ok, parent = pcall(entry.btn.GetParent, entry.btn)
-            local pName = ok and parent and parent.GetName
-                and parent:GetName() or tostring(parent)
-            self:Print("After trigger: parent=" .. tostring(pName))
-        end
     end
 end
 
