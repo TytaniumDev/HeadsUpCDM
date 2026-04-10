@@ -113,7 +113,6 @@ function HUCDM:ReanchorBuffIcons()
 
     local iconSize = 48
     local settings = self.db.profile.layout.columns.actions
-    local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
 
     for frame in viewer.itemFramePool:EnumerateActive() do
@@ -126,9 +125,9 @@ function HUCDM:ReanchorBuffIcons()
                 frame:ClearAllPoints()
                 frame:SetPoint("TOPLEFT", slot.row, "TOPLEFT", slot.xOffset, 0)
                 frame:SetSize(iconSize, iconSize)
-                frame:SetScale(scale)
                 frame:SetAlpha(alpha)
-                frame:Show()
+                -- Do NOT call Show() here — Blizzard's CDM manages visibility
+                -- based on actual buff state. Forcing Show would display inactive buffs.
 
                 -- Store anchor and install SetPoint hook
                 local fd = buffFrameData[frame]

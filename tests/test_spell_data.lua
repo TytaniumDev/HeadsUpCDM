@@ -153,4 +153,28 @@ describe("SpellData", function()
             end
         end)
     end)
+
+    describe("actionbar spell fields", function()
+        it("should have bar and slot for MM_DARK_RANGER Arcane Shot", function()
+            local preset = HUCDM.SpellData.presets["MM_DARK_RANGER"]
+            local arcane
+            for _, s in ipairs(preset.spells) do
+                if s.source == "actionbar" then arcane = s; break end
+            end
+            assert.is_not_nil(arcane)
+            assert.equal(8, arcane.bar)
+            assert.equal(1, arcane.slot)
+        end)
+
+        it("should have bar and slot for MM_SENTINEL Arcane Shot", function()
+            local preset = HUCDM.SpellData.presets["MM_SENTINEL"]
+            local arcane
+            for _, s in ipairs(preset.spells) do
+                if s.source == "actionbar" then arcane = s; break end
+            end
+            assert.is_not_nil(arcane)
+            assert.equal(8, arcane.bar)
+            assert.equal(1, arcane.slot)
+        end)
+    end)
 end)

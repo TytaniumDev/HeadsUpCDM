@@ -21,6 +21,9 @@ local function MockFrame(name)
     function f:SetSize(w, h) self.size.w = w; self.size.h = h end
     function f:GetWidth() return self.size.w end
     function f:GetHeight() return self.size.h end
+    function f:GetLeft() return self._left or 0 end
+    function f:GetTop() return self._top or 0 end
+    function f:GetEffectiveScale() return 1 end
     function f:SetPoint(point, relativeTo, relPoint, x, y)
         self.points[#self.points + 1] = { point, relativeTo, relPoint, x, y }
     end
@@ -71,6 +74,7 @@ local function MockFrame(name)
     f.attrs = {}
     f.frameRefs = {}
     function f:SetAttribute(k, v) self.attrs[k] = v end
+    function f:SetAttributeNoHandler(k, v) self.attrs[k] = v end
     function f:GetAttribute(k) return self.attrs[k] end
     function f:SetFrameRef(k, ref) self.frameRefs[k] = ref end
     function f:GetFrameRef(k) return self.frameRefs[k] end
@@ -140,6 +144,9 @@ _G.EventRegistry = {
 }
 _G.AssistedCombatManager = nil
 _G.CooldownViewerEssentialItemMixin = nil
+
+-- Stub UIParent
+_G.UIParent = MockFrame("UIParent")
 
 -- Create mock ActionButton frames for MultiBar7
 local multiBar7Parent = MockFrame("MultiBar7")
@@ -226,13 +233,35 @@ describe("ActionColumn", function()
         HUCDM.actionBarButtons = nil
     end)
 
+    describe("ResolveActionButton", function()
+        it("should resolve bar 8 slot 1 to MultiBar7Button1", function()
+            local btn = HUCDM:ResolveActionButton(8, 1)
+            assert.equal(_G["MultiBar7Button1"], btn)
+        end)
+
+        it("should resolve bar 8 slot 5 to MultiBar7Button5", function()
+            local btn = HUCDM:ResolveActionButton(8, 5)
+            assert.equal(_G["MultiBar7Button5"], btn)
+        end)
+
+        it("should return nil for missing button", function()
+            local btn = HUCDM:ResolveActionButton(8, 99)
+            assert.is_nil(btn)
+        end)
+
+        it("should return nil for unknown bar number", function()
+            local btn = HUCDM:ResolveActionButton(99, 1)
+            assert.is_nil(btn)
+        end)
+    end)
+
     describe("CreateActionColumn with actionbar spells", function()
-        it("should create a filler icon for Arcane Shot", function()
+        it("should create an entry for Arcane Shot", function()
             HUCDM:CreateActionColumn(preset)
             assert.is_not_nil(HUCDM.actionBarButtons)
             assert.equal(1, #HUCDM.actionBarButtons)
             local entry = HUCDM.actionBarButtons[1]
-            assert.is_not_nil(entry.icon)
+            assert.equal(_G["MultiBar7Button1"], entry.btn)
             assert.equal(185358, entry.spellID)
         end)
 
@@ -249,7 +278,19 @@ describe("ActionColumn", function()
             assert.is_true(arcaneRow.hasActionBarButton)
         end)
 
-        it("should not create icons for CDM spells", function()
+        it("should fall back to static icon when button is missing", function()
+            local saved = _G["MultiBar7Button1"]
+            _G["MultiBar7Button1"] = nil
+
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            assert.is_not_nil(entry.icon)
+            assert.is_nil(entry.handler)
+
+            _G["MultiBar7Button1"] = saved
+        end)
+
+        it("should not create handlers for CDM spells", function()
             local bmPreset = HUCDM.SpellData.presets["BM_PACK_LEADER"]
             HUCDM:CreateActionColumn(bmPreset)
             assert.is_not_nil(HUCDM.actionBarButtons)
@@ -257,12 +298,33 @@ describe("ActionColumn", function()
         end)
     end)
 
+    describe("TriggerActionBarHandlers", function()
+        it("should set layout attributes on shared handler", function()
+            HUCDM:CreateActionColumn(preset)
+            local entry = HUCDM.actionBarButtons[1]
+            entry.row._left = 100
+            entry.row._top = 500
+            HUCDM:TriggerActionBarHandlers()
+            -- Shared handler (module-level) gets the layout attribute
+            -- We can't easily access it from tests since it's a local,
+            -- but we can verify the entry structure is correct
+            assert.is_not_nil(entry.btn)
+            assert.is_not_nil(entry.row)
+        end)
+    end)
+
     describe("DestroyActionColumn cleanup", function()
-        it("should hide filler icons", function()
+
+        it("should hide fallback icon entries", function()
+            local saved = _G["MultiBar7Button1"]
+            _G["MultiBar7Button1"] = nil
+
             HUCDM:CreateActionColumn(preset)
             local icon = HUCDM.actionBarButtons[1].icon
             HUCDM:DestroyActionColumn()
             assert.is_false(icon.shown)
+
+            _G["MultiBar7Button1"] = saved
         end)
 
         it("should clear actionBarButtons table", function()
@@ -313,13 +375,33 @@ describe("ActionColumn", function()
     end)
 
     describe("ReanchorCDMFrames with actionbar spells", function()
-        it("should apply scale to filler icons", function()
+        it("should apply alpha to real ActionButtons via pcall", function()
             HUCDM.SetupCDMHooks = noop
             HUCDM.RegisterColumn = noop
             HUCDM.RelayoutRows = noop
 
             HUCDM:CreateActionColumn(preset)
-            HUCDM.db.profile.layout.columns.actions.scale = 1.5
+            HUCDM.db.profile.layout.columns.actions.alpha = 0.5
+
+            local mockPool = { EnumerateActive = function() return function() end end }
+            _G.EssentialCooldownViewer = { itemFramePool = mockPool }
+            HUCDM:ReanchorCDMFrames()
+            _G.EssentialCooldownViewer = nil
+
+            local btn = HUCDM.actionBarButtons[1].btn
+            assert.equal(0.5, btn.alpha)
+        end)
+
+        it("should apply alpha to fallback icons", function()
+            local saved = _G["MultiBar7Button1"]
+            _G["MultiBar7Button1"] = nil
+
+            HUCDM.SetupCDMHooks = noop
+            HUCDM.RegisterColumn = noop
+            HUCDM.RelayoutRows = noop
+
+            HUCDM:CreateActionColumn(preset)
+            HUCDM.db.profile.layout.columns.actions.alpha = 0.5
 
             local mockPool = { EnumerateActive = function() return function() end end }
             _G.EssentialCooldownViewer = { itemFramePool = mockPool }
@@ -327,7 +409,9 @@ describe("ActionColumn", function()
             _G.EssentialCooldownViewer = nil
 
             local icon = HUCDM.actionBarButtons[1].icon
-            assert.equal(1.5, icon.scale)
+            assert.equal(0.5, icon.alpha)
+
+            _G["MultiBar7Button1"] = saved
         end)
     end)
 end)

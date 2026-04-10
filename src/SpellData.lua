@@ -115,7 +115,7 @@ HUCDM.SpellData.presets = {
             { id = 257044, name = "Rapid Fire", pairedBuffs = {} },
             {
                 id = 185358, name = "Arcane Shot",
-                source = "actionbar",
+                source = "actionbar", bar = 8, slot = 1,
                 pairedBuffs = {
                     { id = 260240, name = "Precise Shots" },
                 },
@@ -155,7 +155,7 @@ HUCDM.SpellData.presets = {
             { id = 257044, name = "Rapid Fire", pairedBuffs = {} },
             {
                 id = 185358, name = "Arcane Shot",
-                source = "actionbar",
+                source = "actionbar", bar = 8, slot = 1,
                 pairedBuffs = {
                     { id = 260240, name = "Precise Shots" },
                 },

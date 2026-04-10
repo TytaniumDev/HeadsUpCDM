@@ -5,8 +5,80 @@
 
 local HUCDM = _G.HeadsUpCDM
 
+-- Bar number -> Blizzard button name prefix
+local BAR_BUTTON_PREFIX = {
+    [1] = "ActionButton",
+    [2] = "MultiBarBottomLeftButton",
+    [3] = "MultiBarBottomRightButton",
+    [4] = "MultiBarRightButton",
+    [5] = "MultiBarLeftButton",
+    [6] = "MultiBar5Button",
+    [7] = "MultiBar6Button",
+    [8] = "MultiBar7Button",
+}
+
+function HUCDM:ResolveActionButton(bar, slot)
+    local prefix = BAR_BUTTON_PREFIX[bar]
+    if not prefix then return nil end
+    return _G[prefix .. slot]
+end
+
+----------------------------------------------------------------------
+-- SecureHandler for ActionButton reparenting — MUST be created at
+-- file-load time (before PLAYER_LOGIN) to be "explicitly protected".
+-- Runtime-created handlers cannot execute protected operations on
+-- Blizzard ActionButtons. Matches EllesmereUI's pattern.
+--
+-- Uses indexed attributes: "btn-N" frame refs, "layout-N" position
+-- strings. Trigger: SetAttribute("do-setup", GetTime()).
+----------------------------------------------------------------------
+local actionBarHandler = CreateFrame("Frame", "HUCDM_ActionBarHandler",
+    UIParent, "SecureHandlerAttributeTemplate")
+
+actionBarHandler:SetAttributeNoHandler("_onattributechanged", [=[
+    if name == "do-setup" then
+        local count = self:GetAttribute("btn-count") or 0
+        local uip = self:GetFrameRef("uiParent")
+        if not uip then return end
+        for i = 1, count do
+            local b = self:GetFrameRef("btn-" .. i)
+            local layout = self:GetAttribute("layout-" .. i)
+            if b and layout then
+                local x, y, w, h = strsplit("|", layout)
+                b:SetParent(uip)
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", uip, "BOTTOMLEFT",
+                    tonumber(x) or 0, tonumber(y) or 0)
+                b:SetWidth(tonumber(w) or 48)
+                b:SetHeight(tonumber(h) or 48)
+                b:Show()
+            end
+        end
+    elseif name == "do-restore" then
+        local count = self:GetAttribute("btn-count") or 0
+        for i = 1, count do
+            local b = self:GetFrameRef("btn-" .. i)
+            local p = self:GetFrameRef("orig-" .. i)
+            if b and p then
+                b:SetParent(p)
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
+                b:Show()
+            end
+        end
+        -- Clear btn-count so a stale do-setup can't act on already-restored refs
+        self:SetAttribute("btn-count", 0)
+    end
+]=])
+
 -- Per-frame data (weak-keyed so GC cleans up recycled frames)
 local frameData = setmetatable({}, { __mode = "k" })
+
+-- Persistent cache of each ActionButton's TRUE original parent, captured the
+-- first time we see it. Used across DestroyActionColumn -> CreateActionColumn
+-- cycles so a deferred restore (combat lockdown) always targets the real
+-- Blizzard bar frame, not a UIParent we reparented it to ourselves.
+local origParents = setmetatable({}, { __mode = "k" })
 
 local REANCHOR_THROTTLE = 0.15
 local reanchorDirty = false
@@ -56,53 +128,125 @@ function HUCDM:CreateActionColumn(preset)
         self.cdmSpellSlots[spellInfo.id] = { row = row, index = i }
     end
 
-    -- Create icon frames for spells with source = "actionbar".
-    -- Blizzard ActionButtons are fully protected in 12.0 — we create our own
-    -- non-secure icon frames and track spell state via UNIT_AURA / UnitPower.
+    -- Set up ActionButtons for spells with source = "actionbar".
+    -- Uses SecureHandler restricted code to call protected SetParent/SetPoint
+    -- on Blizzard ActionButtons (required in WoW 12.0 due to taint).
+    -- Falls back to static icon frames if the button global is missing.
     self.actionBarButtons = {}
-    local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
 
     for i, spellInfo in ipairs(preset.spells) do
         if spellInfo.source == "actionbar" then
             local row = self.actionRows[i]
+            local btn = spellInfo.bar and spellInfo.slot
+                and self:ResolveActionButton(spellInfo.bar, spellInfo.slot)
 
-            -- Create icon frame at the row position (anonymous to avoid
-            -- global namespace pollution on rebuild)
-            local icon = CreateFrame("Frame", nil, row)
-            icon:SetAllPoints(row)
+            if btn then
+                -- Register button on the file-load-time SecureHandler.
+                -- The handler is explicitly protected and can execute
+                -- SetParent/SetPoint on Blizzard ActionButtons.
+                -- Trigger is deferred to TriggerActionBarHandlers().
+                --
+                -- Note: HUD scale does NOT apply to action bar buttons.
+                -- Scale interacts with SetPoint offsets in restricted code,
+                -- causing position drift. Buttons stay at native size.
+                local abIdx = #self.actionBarButtons + 1
+                -- Capture original parent once, then reuse. If we re-enter
+                -- CreateActionColumn after a prior do-setup, btn:GetParent()
+                -- is UIParent (our reparent target), not the real Blizzard bar.
+                if not origParents[btn] then
+                    origParents[btn] = btn:GetParent()
+                end
+                actionBarHandler:SetFrameRef("btn-" .. abIdx, btn)
+                actionBarHandler:SetFrameRef("orig-" .. abIdx, origParents[btn])
+                pcall(btn.SetAlpha, btn, alpha)
 
-            -- Spell icon texture (pcall: GetSpellInfo returns tainted values)
-            local tex = icon:CreateTexture(nil, "ARTWORK")
-            tex:SetAllPoints()
-            local ok, spellInfo2 = pcall(C_Spell.GetSpellInfo, spellInfo.id)
-            if ok and spellInfo2 and spellInfo2.iconID then
-                pcall(tex.SetTexture, tex, spellInfo2.iconID)
+                row.hasActionBarButton = true
+
+                self.actionBarButtons[#self.actionBarButtons + 1] = {
+                    btn = btn,
+                    row = row,
+                    spellID = spellInfo.id,
+                }
+            else
+                -- Fallback: static icon frame (button not found on bar)
+                local icon = CreateFrame("Frame", nil, row)
+                icon:SetAllPoints(row)
+                local tex = icon:CreateTexture(nil, "ARTWORK")
+                tex:SetAllPoints()
+                local ok, info = pcall(C_Spell.GetSpellInfo, spellInfo.id)
+                if ok and info and info.iconID then
+                    pcall(tex.SetTexture, tex, info.iconID)
+                end
+                icon.texture = tex
+                icon:SetAlpha(alpha)
+                icon:Show()
+
+                row.hasActionBarButton = true
+
+                self.actionBarButtons[#self.actionBarButtons + 1] = {
+                    icon = icon,
+                    row = row,
+                    spellID = spellInfo.id,
+                }
             end
-            icon.texture = tex
-
-            icon:SetScale(scale)
-            icon:SetAlpha(alpha)
-            icon:Show()
-
-            row.hasActionBarButton = true
-
-            self.actionBarButtons[#self.actionBarButtons + 1] = {
-                icon = icon,
-                row = row,
-                spellID = spellInfo.id,
-            }
         end
     end
 
     -- Sync the CDM viewer to our column and install hooks
     self:SetupCDMHooks()
 
-    -- Deferred initial positioning (next frame, let CDM finish its layout)
-    C_Timer.After(0, function() self:ReanchorCDMFrames() end)
+    -- Deferred initial positioning (next frame, after ArrangeColumns finalizes positions)
+    C_Timer.After(0, function()
+        self:TriggerActionBarHandlers()
+        self:ReanchorCDMFrames()
+    end)
 
     self:RegisterColumn("actions", column)
     return column
+end
+
+----------------------------------------------------------------------
+-- Compute absolute positions and trigger SecureHandler reanchor
+-- for ActionBar buttons. Must be called AFTER ArrangeColumns so
+-- row frames have valid screen positions.
+----------------------------------------------------------------------
+function HUCDM:TriggerActionBarHandlers()
+    local buttons = self.actionBarButtons
+    if not buttons or #buttons == 0 then return end
+    if InCombatLockdown() then
+        -- Restricted SetParent/SetPoint are blocked in combat; the caller
+        -- (drag-stop / rebuild) will retry after PLAYER_REGEN_ENABLED.
+        self.pendingActionBarRetrigger = true
+        return
+    end
+
+    actionBarHandler:SetFrameRef("uiParent", UIParent)
+    local validCount = 0
+    -- "w|h" matches iconSize = 48; update both if the icon size changes.
+    for i, entry in ipairs(buttons) do
+        local wrote = false
+        if entry.btn and entry.row then
+            local left = entry.row:GetLeft()
+            local top = entry.row:GetTop()
+            if left and top then
+                validCount = validCount + 1
+                actionBarHandler:SetAttribute("layout-" .. i,
+                    string.format("%.1f|%.1f|48|48", left, top))
+                wrote = true
+            end
+        end
+        if not wrote then
+            -- Clear any stale layout from a previous trigger so the restricted
+            -- code's `if b and layout then` guard skips this index cleanly.
+            actionBarHandler:SetAttribute("layout-" .. i, nil)
+        end
+    end
+    actionBarHandler:SetAttribute("btn-count", #buttons)
+
+    if validCount > 0 then
+        actionBarHandler:SetAttribute("do-setup", GetTime())
+    end
 end
 
 ----------------------------------------------------------------------
@@ -201,7 +345,6 @@ function HUCDM:ReanchorCDMFrames()
 
     local iconSize = 48
     local settings = self.db.profile.layout.columns.actions
-    local scale = (settings and settings.scale) or 1
     local alpha = (settings and settings.alpha) or 1
 
     -- Reset flags before scanning (preserve rows with action bar buttons as having content)
@@ -216,11 +359,10 @@ function HUCDM:ReanchorCDMFrames()
             local slot = (overrideID and self.cdmSpellSlots[overrideID])
                 or (baseID and self.cdmSpellSlots[baseID])
             if slot then
-                -- Position frame at our row anchor and apply scale
+                -- Position frame at our row anchor
                 frame:ClearAllPoints()
                 frame:SetPoint("TOPLEFT", slot.row, "TOPLEFT", 0, 0)
                 frame:SetSize(iconSize, iconSize)
-                frame:SetScale(scale)
                 frame:SetAlpha(alpha)
 
                 -- Store the canonical anchor so SetPoint hook can enforce it
@@ -252,10 +394,11 @@ function HUCDM:ReanchorCDMFrames()
         end
     end
 
-    -- Update filler icon scale/alpha (rows already marked via hasActionBarButton)
+    -- Update actionbar entry alpha
     for _, entry in ipairs(self.actionBarButtons or {}) do
-        if entry.icon then
-            entry.icon:SetScale(scale)
+        if entry.btn then
+            pcall(entry.btn.SetAlpha, entry.btn, alpha)
+        elseif entry.icon then
             entry.icon:SetAlpha(alpha)
         end
     end
@@ -342,9 +485,26 @@ end
 function HUCDM:DestroyActionColumn()
     self:RestoreButtons()
 
-    -- Clean up filler icon frames
+    -- Restore SecureHandler buttons, hide fallback icons
+    local hasHandlerEntries = false
     for _, entry in ipairs(self.actionBarButtons or {}) do
-        if entry.icon then entry.icon:Hide() end
+        if entry.btn then
+            hasHandlerEntries = true
+        elseif entry.icon then
+            entry.icon:Hide()
+        end
+    end
+    if hasHandlerEntries then
+        if InCombatLockdown() then
+            -- do-restore triggers restricted SetParent/SetPoint, which is
+            -- blocked in combat. Defer to PLAYER_REGEN_ENABLED via the
+            -- pending flag — origParents cache keeps the target parent
+            -- stable even if a new CreateActionColumn runs before flush.
+            self.pendingActionBarRestore = true
+            self:Print("HeadsUpCDM: action buttons will be restored after combat ends.")
+        else
+            actionBarHandler:SetAttribute("do-restore", GetTime())
+        end
     end
     self.actionBarButtons = {}
 
@@ -365,6 +525,22 @@ end
 ----------------------------------------------------------------------
 function HUCDM:RescanActionButtons()
     self:ReanchorCDMFrames()
+end
+
+----------------------------------------------------------------------
+-- Flush deferred handler work that was blocked by combat lockdown.
+-- Called from Core.lua's PLAYER_REGEN_ENABLED handler.
+----------------------------------------------------------------------
+function HUCDM:FlushPendingActionBarRestore()
+    if InCombatLockdown() then return end
+    if self.pendingActionBarRestore then
+        self.pendingActionBarRestore = false
+        actionBarHandler:SetAttribute("do-restore", GetTime())
+    end
+    if self.pendingActionBarRetrigger then
+        self.pendingActionBarRetrigger = false
+        self:TriggerActionBarHandlers()
+    end
 end
 
 ----------------------------------------------------------------------
