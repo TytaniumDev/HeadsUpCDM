@@ -136,8 +136,8 @@ function HUCDM:SyncColumnHeights()
     -- own frames gets blocked by the 12.0 taint system.
     C_Timer.After(0, function()
         if self.buffBarColumn then self.buffBarColumn:SetHeight(h) end
+        -- resourceBar tracks resourceColumn via two-point anchors — no SetHeight needed
         if self.resourceColumn then self.resourceColumn:SetHeight(h) end
-        if self.resourceBar then self.resourceBar:SetHeight(h) end
     end)
 end
 
