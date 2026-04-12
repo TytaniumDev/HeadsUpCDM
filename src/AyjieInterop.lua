@@ -68,9 +68,13 @@ function HUCDM:InitAyjieInterop()
         end
     end
 
-    -- Patch 5: Disable Ayjie's rotation glow to prevent double-glow
+    -- Patch 5: Disable Ayjie's rotation glow to prevent double-glow.
+    -- HeadsUpCDM has its own rotation glow via LibCustomGlow; Ayjie's glow
+    -- would stack on top since it finds frames by cooldownID regardless of
+    -- position. Only fires if user explicitly enabled Ayjie's glow (default off).
     if CDM.db and CDM.db.rotationAssistEnabled then
         CDM.db.rotationAssistEnabled = false
+        self:Print("HeadsUpCDM: disabled Ayije rotation glow (HeadsUpCDM provides its own)")
     end
 
     self:Print("HeadsUpCDM: Ayije CDM detected — coexistence mode active")
