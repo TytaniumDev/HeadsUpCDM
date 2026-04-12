@@ -249,37 +249,45 @@ function HUCDM:SetupCDMHooks()
 
     self.cdmHooksInstalled = true
 
-    -- Anchor the viewer itself to our column so frames render in our space
-    local function SyncViewerToColumn()
-        if InCombatLockdown() then return end
-        local col = self.actionColumn
-        if not col then return end
-        viewer:ClearAllPoints()
-        viewer:SetPoint("TOPLEFT", col, "TOPLEFT", 0, 0)
-        viewer:SetPoint("BOTTOMRIGHT", col, "BOTTOMRIGHT", 0, 0)
-    end
+    -- Viewer-level hooks (SyncViewerToColumn, Layout, RefreshLayout, SetPoint
+    -- on the viewer itself) are skipped when Ayjie is loaded. Both addons
+    -- install permanent hooksecurefunc on the viewer's SetPoint; if both run,
+    -- they infinitely recurse as each tries to reanchor the viewer to its own
+    -- container. Per-frame anchors are sufficient — individual icon frames
+    -- are positioned at our row frames regardless of where the viewer sits.
+    if not self.ayjieInterop then
+        local function SyncViewerToColumn()
+            if InCombatLockdown() then return end
+            local col = self.actionColumn
+            if not col then return end
+            viewer:ClearAllPoints()
+            viewer:SetPoint("TOPLEFT", col, "TOPLEFT", 0, 0)
+            viewer:SetPoint("BOTTOMRIGHT", col, "BOTTOMRIGHT", 0, 0)
+        end
 
-    -- Hook Layout to re-sync after Blizzard repositions the viewer
-    hooksecurefunc(viewer, "Layout", function()
-        SyncViewerToColumn()
-        self:QueueReanchor()
-    end)
-
-    if viewer.RefreshLayout then
-        hooksecurefunc(viewer, "RefreshLayout", function()
+        hooksecurefunc(viewer, "Layout", function()
             SyncViewerToColumn()
-            self:ReanchorCDMFrames()  -- immediate, not queued (prevent flash)
+            self:QueueReanchor()
         end)
+
+        if viewer.RefreshLayout then
+            hooksecurefunc(viewer, "RefreshLayout", function()
+                SyncViewerToColumn()
+                self:ReanchorCDMFrames()
+            end)
+        end
+
+        hooksecurefunc(viewer, "SetPoint", function(_, _, relativeTo)
+            if InCombatLockdown() then return end
+            local col = self.actionColumn
+            if not col or relativeTo == col then return end
+            SyncViewerToColumn()
+        end)
+
+        SyncViewerToColumn()
     end
 
-    -- Hook SetPoint on the viewer to prevent Blizzard moving it
-    hooksecurefunc(viewer, "SetPoint", function(_, _, relativeTo)
-        if InCombatLockdown() then return end
-        local col = self.actionColumn
-        if not col or relativeTo == col then return end
-        SyncViewerToColumn()
-    end)
-
+    -- Per-frame hooks: installed regardless of Ayjie interop
     -- Hook OnCooldownIDSet to detect frame recycling and spell transforms
     if CooldownViewerEssentialItemMixin
         and CooldownViewerEssentialItemMixin.OnCooldownIDSet then
@@ -311,9 +319,6 @@ function HUCDM:SetupCDMHooks()
         self:ReanchorCDMFrames()
     end)
     self.reanchorFrame = reanchorFrame
-
-    -- Initial sync
-    SyncViewerToColumn()
 end
 
 ----------------------------------------------------------------------
