@@ -12,6 +12,7 @@ local OWNED_VIEWERS = {
 }
 
 function HUCDM:InitAyjieInterop()
+    if self.ayjieInterop then return end
     if not C_AddOns.IsAddOnLoaded("Ayije_CDM") then return end
 
     local CDM = _G.Ayije_CDM
@@ -51,7 +52,7 @@ function HUCDM:InitAyjieInterop()
     -- Essential container is kept so Ayjie's Utility viewer can anchor to it.
     local origGetOrCreate = CDM.GetOrCreateAnchorContainer
     CDM.GetOrCreateAnchorContainer = function(cdmSelf, viewer)
-        local vName = viewer and viewer:GetName()
+        local vName = viewer and viewer.GetName and viewer:GetName()
         if vName == "BuffIconCooldownViewer" or vName == "BuffBarCooldownViewer" then
             return nil
         end
