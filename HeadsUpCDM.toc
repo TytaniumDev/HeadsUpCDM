@@ -51,6 +51,7 @@ libs/AceConfig-3.0/AceConfig-3.0.lua
 
 # Core
 src/Config.lua
+src/AyjieInterop.lua
 src/Core.lua
 
 # Data

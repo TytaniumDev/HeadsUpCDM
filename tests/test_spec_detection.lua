@@ -24,6 +24,8 @@ dofile("src/SpellData.lua")
 dofile("src/SpecDetection.lua")
 
 local HUCDM = _G.HeadsUpCDM
+local noop = function() end
+HUCDM.InitAyjieInterop = noop
 
 describe("SpecDetection", function()
     it("should expose DetectBuild on addon", function()

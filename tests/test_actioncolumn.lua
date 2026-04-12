@@ -188,6 +188,7 @@ HUCDM.DestroyLayout        = noop
 HUCDM.RescanActionButtons  = noop
 HUCDM.DetectCurrentBuild   = noop
 HUCDM.RegisterEvent        = HUCDM.RegisterEvent or noop
+HUCDM.InitAyjieInterop     = noop
 HUCDM.SetupCDMHooks        = noop
 HUCDM.RegisterColumn       = noop
 HUCDM.RelayoutRows         = noop
