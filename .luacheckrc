@@ -51,6 +51,7 @@ read_globals = {
     "UIParent",
     "BackdropTemplateMixin",
 
+    C_AddOns = { other_fields = true },
     C_SpellActivationOverlay = { other_fields = true },
     C_SpellBook = { other_fields = true },
     C_UnitAuras = { other_fields = true },

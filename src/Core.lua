@@ -7,6 +7,7 @@ local HUCDM = _G.HeadsUpCDM
 ----------------------------------------------------------------------
 function HUCDM:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("HeadsUpCDMDB", self.defaults, true)
+    self:InitAyjieInterop()
     self:RegisterChatCommand("headsupcdm", "SlashCommand")
     self:RegisterChatCommand("hucdm", "SlashCommand")
     self:RegisterChatCommand("cdm", "OpenBlizzardCDM")

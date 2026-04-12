@@ -188,6 +188,7 @@ HUCDM.DestroyLayout        = noop
 HUCDM.RescanActionButtons  = noop
 HUCDM.DetectCurrentBuild   = noop
 HUCDM.RegisterEvent        = HUCDM.RegisterEvent or noop
+HUCDM.InitAyjieInterop     = noop
 HUCDM.SetupCDMHooks        = noop
 HUCDM.RegisterColumn       = noop
 HUCDM.RelayoutRows         = noop
@@ -412,6 +413,60 @@ describe("ActionColumn", function()
             assert.equal(0.5, icon.alpha)
 
             _G["MultiBar7Button1"] = saved
+        end)
+    end)
+
+    describe("SetupCDMHooks with Ayjie interop", function()
+        before_each(function()
+            -- Re-load ActionColumn so SetupCDMHooks is the real implementation
+            dofile("src/UI/ActionColumn.lua")
+            HUCDM.RegisterColumn = noop
+            HUCDM.RelayoutRows = noop
+
+            HUCDM:OnInitialize()
+            HUCDM.ayjieInterop = true
+
+            local mockViewer = MockFrame("EssentialCooldownViewer")
+            mockViewer.Layout = function() end
+            mockViewer.RefreshLayout = function() end
+            mockViewer.itemFramePool = {
+                Acquire = function() end,
+                EnumerateActive = function() return function() return nil end end,
+            }
+            _G["EssentialCooldownViewer"] = mockViewer
+        end)
+
+        after_each(function()
+            HUCDM.ayjieInterop = nil
+            HUCDM.cdmHooksInstalled = false
+            HUCDM.reanchorFrame = nil
+            _G["EssentialCooldownViewer"] = nil
+            -- Restore noop stubs so outer describe block is unaffected
+            HUCDM.SetupCDMHooks = noop
+            HUCDM.RegisterColumn = noop
+            HUCDM.RelayoutRows = noop
+        end)
+
+        it("should still mark hooks as installed", function()
+            HUCDM:SetupCDMHooks()
+            assert.is_true(HUCDM.cdmHooksInstalled)
+        end)
+
+        it("should create the reanchor throttle frame", function()
+            HUCDM:SetupCDMHooks()
+            assert.is_not_nil(HUCDM.reanchorFrame)
+        end)
+
+        it("should not call SyncViewerToColumn on initial setup", function()
+            local viewerSetPointCalled = false
+            local viewer = _G["EssentialCooldownViewer"]
+            viewer.SetPoint = function()
+                viewerSetPointCalled = true
+            end
+            viewer.ClearAllPoints = function() end
+            HUCDM.actionColumn = MockFrame("ActionColumn")
+            HUCDM:SetupCDMHooks()
+            assert.is_false(viewerSetPointCalled)
         end)
     end)
 end)

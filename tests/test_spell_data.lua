@@ -23,6 +23,8 @@ dofile("src/Core.lua")
 dofile("src/SpellData.lua")
 
 local HUCDM = _G.HeadsUpCDM
+local noop = function() end
+HUCDM.InitAyjieInterop = noop
 
 describe("SpellData", function()
     it("should expose SpellData table on addon", function()

@@ -28,6 +28,7 @@ _G.C_Timer = { After = function() end, NewTicker = function() return { Cancel = 
 _G.InCombatLockdown = function() return false end
 _G.IsShiftKeyDown = function() return false end
 _G.CooldownViewerSettings = nil -- stub; tests override per-case
+_G.C_AddOns = { IsAddOnLoaded = function() return false end }
 
 -- Load source files in order
 dofile("src/Config.lua")
@@ -60,6 +61,7 @@ HUCDM.DestroyLayout        = noop
 HUCDM.RescanActionButtons  = noop
 HUCDM.DetectCurrentBuild   = noop
 HUCDM.RegisterEvent        = HUCDM.RegisterEvent or noop
+HUCDM.InitAyjieInterop     = noop
 
 describe("Config", function()
     it("should register the addon in _G", function()
@@ -128,6 +130,17 @@ describe("Core", function()
             HUCDM:OnInitialize()
             assert.is_not_nil(HUCDM.db)
             assert.is_not_nil(HUCDM.db.profile)
+        end)
+    end)
+
+    describe("OnInitialize with Ayjie interop", function()
+        it("should call InitAyjieInterop during init", function()
+            local called = false
+            local orig = HUCDM.InitAyjieInterop
+            HUCDM.InitAyjieInterop = function() called = true end
+            HUCDM:OnInitialize()
+            HUCDM.InitAyjieInterop = orig
+            assert.is_true(called)
         end)
     end)
 
