@@ -87,12 +87,13 @@ describe("AyjieInterop", function()
     end)
 
     describe("when Ayjie is loaded with required methods", function()
-        local CDM, forceReanchorCalled, repositionCalled, getOrCreateCalled
+        local CDM, forceReanchorCalled, repositionCalled, getOrCreateCalled, applyStyleCalled
 
         before_each(function()
             forceReanchorCalled = {}
             repositionCalled = {}
             getOrCreateCalled = {}
+            applyStyleCalled = {}
 
             CDM = {
                 ForceReanchor = function(self, viewer)
@@ -109,6 +110,12 @@ describe("AyjieInterop", function()
                     local vName = viewer and viewer:GetName()
                     getOrCreateCalled[#getOrCreateCalled + 1] = vName
                     return MockFrame(vName .. "_Container")
+                end,
+                ApplyStyle = function(self, frame, vName, forceUpdate)
+                    applyStyleCalled[#applyStyleCalled + 1] = {
+                        frame = frame, vName = vName, forceUpdate = forceUpdate,
+                    }
+                    return true
                 end,
                 anchorContainers = {},
                 db = { rotationAssistEnabled = false },
@@ -207,9 +214,42 @@ describe("AyjieInterop", function()
             CDM.ForceReanchor = function() return true end
             CDM.RepositionBuffViewer = function() return true end
             CDM.GetOrCreateAnchorContainer = function() return MockFrame("c") end
+            CDM.ApplyStyle = function() return true end
 
             HUCDM:InitAyjieInterop()
             assert.is_false(CDM.db.rotationAssistEnabled)
+        end)
+
+        it("should skip ApplyStyle for Blizzard CDM frames in Essential viewer", function()
+            local frame = { cooldownID = 12345 }
+            CDM:ApplyStyle(frame, "EssentialCooldownViewer", true)
+            assert.equal(0, #applyStyleCalled)
+        end)
+
+        it("should skip ApplyStyle for Blizzard CDM frames in BuffIcon viewer", function()
+            local frame = { cooldownID = 12345 }
+            CDM:ApplyStyle(frame, "BuffIconCooldownViewer", true)
+            assert.equal(0, #applyStyleCalled)
+        end)
+
+        it("should skip ApplyStyle for Blizzard CDM frames in BuffBar viewer", function()
+            local frame = { cooldownID = 12345 }
+            CDM:ApplyStyle(frame, "BuffBarCooldownViewer", true)
+            assert.equal(0, #applyStyleCalled)
+        end)
+
+        it("should delegate ApplyStyle for Ayjie tracker frames in Essential viewer", function()
+            -- Trinkets/Defensives are passed vName=ESSENTIAL but lack cooldownID
+            local frame = { isTrinket = true }
+            CDM:ApplyStyle(frame, "EssentialCooldownViewer", true)
+            assert.equal(1, #applyStyleCalled)
+            assert.equal("EssentialCooldownViewer", applyStyleCalled[1].vName)
+        end)
+
+        it("should delegate ApplyStyle for Utility viewer frames", function()
+            local frame = { cooldownID = 12345 }
+            CDM:ApplyStyle(frame, "UtilityCooldownViewer", true)
+            assert.equal(1, #applyStyleCalled)
         end)
     end)
 
@@ -222,6 +262,7 @@ describe("AyjieInterop", function()
                 ForceReanchor = function() return true end,
                 RepositionBuffViewer = function() return true end,
                 GetOrCreateAnchorContainer = function() return MockFrame("c") end,
+                ApplyStyle = function() return true end,
                 anchorContainers = {
                     ["BuffIconCooldownViewer"] = buffContainer,
                     ["BuffBarCooldownViewer"] = bbContainer,

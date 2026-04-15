@@ -20,7 +20,7 @@ function HUCDM:InitAyjieInterop()
 
     -- Version safety: verify required methods exist
     if not CDM.ForceReanchor or not CDM.RepositionBuffViewer
-        or not CDM.GetOrCreateAnchorContainer then
+        or not CDM.GetOrCreateAnchorContainer or not CDM.ApplyStyle then
         self:Print("HeadsUpCDM: Ayije_CDM version incompatible — disable one addon to prevent lockup")
         return
     end
@@ -68,7 +68,25 @@ function HUCDM:InitAyjieInterop()
         end
     end
 
-    -- Patch 5: Disable Ayjie's rotation glow to prevent double-glow.
+    -- Patch 5: Skip ApplyStyle for our owned-viewer Blizzard CDM frames.
+    -- Ayije 3.80 added ForceRestyleAll (registered as the "viewers_style"
+    -- refresh callback) which iterates every active itemFrame in Essential
+    -- and BuffIcon viewers and calls ApplyStyle. ApplyStyle calls
+    -- frame:SetSize() with Ayjie's configured icon size, resizing our 48x48
+    -- frames and breaking visual alignment with our row anchors.
+    --
+    -- Distinguish Blizzard CDM item frames (have cooldownID) from Ayjie's
+    -- own tracker frames (Trinkets, Defensives — no cooldownID) which Ayjie
+    -- styles using the Essential vName but which we don't manage.
+    local origApplyStyle = CDM.ApplyStyle
+    CDM.ApplyStyle = function(cdmSelf, frame, vName, forceUpdate)
+        if OWNED_VIEWERS[vName] and frame and frame.cooldownID then
+            return
+        end
+        return origApplyStyle(cdmSelf, frame, vName, forceUpdate)
+    end
+
+    -- Patch 6: Disable Ayjie's rotation glow to prevent double-glow.
     -- HeadsUpCDM has its own rotation glow via LibCustomGlow; Ayjie's glow
     -- would stack on top since it finds frames by cooldownID regardless of
     -- position. Only fires if user explicitly enabled Ayjie's glow (default off).
