@@ -20,7 +20,7 @@ function HUCDM:InitAyjieInterop()
 
     -- Version safety: verify required methods exist
     if not CDM.ForceReanchor or not CDM.RepositionBuffViewer
-        or not CDM.GetOrCreateAnchorContainer or not CDM.ApplyStyle then
+        or not CDM.GetOrCreateAnchorContainer then
         self:Print("HeadsUpCDM: Ayije_CDM version incompatible — disable one addon to prevent lockup")
         return
     end
@@ -78,12 +78,17 @@ function HUCDM:InitAyjieInterop()
     -- Distinguish Blizzard CDM item frames (have cooldownID) from Ayjie's
     -- own tracker frames (Trinkets, Defensives — no cooldownID) which Ayjie
     -- styles using the Essential vName but which we don't manage.
-    local origApplyStyle = CDM.ApplyStyle
-    CDM.ApplyStyle = function(cdmSelf, frame, vName, forceUpdate)
-        if OWNED_VIEWERS[vName] and frame and frame.cooldownID then
-            return
+    --
+    -- Conditional: pre-3.80 Ayije lacks ForceRestyleAll so the patch isn't
+    -- needed, but we still want Patches 1-4 active for those versions.
+    if CDM.ApplyStyle then
+        local origApplyStyle = CDM.ApplyStyle
+        CDM.ApplyStyle = function(cdmSelf, frame, vName, forceUpdate)
+            if OWNED_VIEWERS[vName] and frame and frame.cooldownID then
+                return false
+            end
+            return origApplyStyle(cdmSelf, frame, vName, forceUpdate)
         end
-        return origApplyStyle(cdmSelf, frame, vName, forceUpdate)
     end
 
     -- Patch 6: Disable Ayjie's rotation glow to prevent double-glow.

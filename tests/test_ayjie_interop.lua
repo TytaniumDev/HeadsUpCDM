@@ -251,6 +251,11 @@ describe("AyjieInterop", function()
             CDM:ApplyStyle(frame, "UtilityCooldownViewer", true)
             assert.equal(1, #applyStyleCalled)
         end)
+
+        it("should delegate ApplyStyle when frame is nil (guard short-circuits)", function()
+            CDM:ApplyStyle(nil, "EssentialCooldownViewer", true)
+            assert.equal(1, #applyStyleCalled)
+        end)
     end)
 
     describe("container cleanup", function()
